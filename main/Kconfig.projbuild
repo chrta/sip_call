@@ -1,0 +1,101 @@
+menu "SipCall Configuration"
+
+config WIFI_SSID
+    string "WiFi SSID"
+    default "myssid"
+    help
+	SSID (network name) for the example to connect to.
+
+config WIFI_PASSWORD
+    string "WiFi Password"
+    default "mypassword"
+    help
+	WiFi password (WPA or WPA2) for the example to use.
+
+choice POWER_SAVE_MODE
+    prompt "power save mode"
+    default POWER_SAVE_NONE
+    help
+	Power save mode for the esp32 to use.
+
+config POWER_SAVE_NONE
+    bool "none"
+config POWER_SAVE_MODEM
+    bool "modem"
+endchoice
+
+config BELL_INPUT_GPIO
+    int "Bell input GPIO number"
+        range 0 39
+        default 0
+        help
+                GPIO number (IOxx) to read the bell state from.
+                Some GPIOs are used for other purposes (flash connections, etc.) and cannot be used.
+                GPIO 0 is also the boot pin, so the BOOT button can be used for testing.
+
+config RING_DURATION
+    int "Ring duration in milliseconds"
+        range 1000 30000
+        default 7000
+        help
+                This is the maximum duration, the called phone rings.
+		In reality, this phone rings for a shorter duration, because there is a delay, between
+		the SIP ring request, the ACK from the SIP server and the actual ringing of the phone.
+
+config SIP_SERVER_IP
+    string "SIP Server IP"
+        default "192.168.179.1"
+        help
+                SIP Server IP to connect to.
+
+		This is overwritten with the gateway address from the DHCP server.	
+
+                See README.md for details.
+
+config SIP_SERVER_PORT
+        string "SIP Server Port"
+        default "5060"
+        help
+                SIP Server port to connect to.
+                Should be chosen not to conflict with any other port used
+                on the system.
+
+config SIP_USER
+    string "SIP Username"
+        default "620"
+        help
+                SIP Username to log into the SIP server.
+
+config SIP_PASSWORD
+    string "SIP User Password"
+        default "secret"
+        help
+                Password for the given SIP User to log into the SIP server.
+
+config LOCAL_IP
+    string "Local IP"
+        default "192.168.179.30"
+        help
+                IP address of the ESP32.
+
+		This is overwritten with the assigned IP address from the DHCP server.	
+
+                See README.md for details.
+
+config CALL_TARGET_USER
+    string "Call Target User"
+        default "**611"
+        help
+                This target user on the local sip server is called if the event happens
+
+                See README.md for details.
+
+config CALLER_DISPLAY_MESSAGE
+    string "Caller Display Message"
+        default "Türklingel"
+        help
+                This message is shown on the called device.
+
+                See README.md for details.
+
+endmenu
