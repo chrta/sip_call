@@ -85,7 +85,7 @@ public:
             line_number++;
 
             //create a proper null terminated c string
-            //frome here on string functions may be used!
+            //from here on string functions may be used!
             memset(end_position, 0, LINE_ENDING_LEN);
             ESP_LOGV(TAG, "Parsing line: %s", start_position);
 
@@ -103,12 +103,10 @@ public:
                 if (!read_param(start_position, REALM, m_realm))
                 {
                     ESP_LOGW(TAG, "Failed to read realm in authenticate line");
-                    //continue;
                 }
                 if (!read_param(start_position, NONCE, m_nonce))
                 {
                     ESP_LOGW(TAG, "Failed to read nonce in authenticate line");
-                    //continue;
                 }
                 ESP_LOGI(TAG, "Realm is %s and nonce is %s", m_realm.c_str(), m_nonce.c_str());
             }
@@ -153,7 +151,7 @@ public:
             }
             else if (line_number == 1)
             {
-                //first line, but no respone
+                //first line, but no response
                 m_method = convert_method(start_position);
             }
 
