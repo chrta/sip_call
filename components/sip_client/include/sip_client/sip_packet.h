@@ -68,7 +68,7 @@ public:
       
     if (end_position == nullptr)
     {
-      ESP_LOGW(TAG, "No line endong found in %s", m_buffer);
+      ESP_LOGW(TAG, "No line ending found in %s", m_buffer);
       return false;
     }
 
@@ -78,7 +78,6 @@ public:
       size_t length = end_position - start_position;
       if (length == 0) //line only contains the line ending
       {
-	//valid end of header
 	ESP_LOGV(TAG, "Valid end of header detected");
 	return true;
       }
