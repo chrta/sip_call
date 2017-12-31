@@ -10,8 +10,8 @@ is started again.
 
 Tested with:
 
-* AVM Fritbox 7390
-* AVM Fritbox 7490
+* AVM Fritzbox 7390
+* AVM Fritzbox 7490
 
 Programming
 -----------
