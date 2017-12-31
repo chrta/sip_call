@@ -50,7 +50,7 @@ class SipClientInt
 public:
     SipClientInt(const std::string& user, const std::string& pwd, const std::string& server_ip, const std::string& server_port, const std::string& my_ip)
     : m_socket(server_ip, server_port, LOCAL_PORT)
-     , m_rtp_socket(server_ip, "7078", LOCAL_RTP_PORT)
+    , m_rtp_socket(server_ip, "7078", LOCAL_RTP_PORT)
     , m_server_ip(server_ip)
     , m_user(user)
     , m_pwd(pwd)
@@ -65,6 +65,7 @@ public:
     , m_tag(std::rand() % 2147483647)
     , m_branch(std::rand() % 2147483647)
     , m_caller_display(m_user)
+    , m_sdp_session_id(0)
     , m_command_event_group(xEventGroupCreate())
     {
         xTaskCreate(&rtp_task, "rtp_task", 4096, &m_rtp_socket, 4, NULL);
