@@ -89,40 +89,30 @@ public:
             memset(end_position, 0, LINE_ENDING_LEN);
             ESP_LOGV(TAG, "Parsing line: %s", start_position);
 
-            if (strstr(start_position, "SIP/2.0 ") == start_position)
+            if (strstr(start_position, SIP_2_0_SPACE) == start_position)
             {
-                long code = strtol(start_position + strlen ("SIP/2.0 "), nullptr, 10);
+                long code = strtol(start_position + strlen(SIP_2_0_SPACE), nullptr, 10);
                 ESP_LOGV(TAG, "Detect status %ld", code);
-                switch (code)
-                {
-                case 200: m_status = Status::OK_200; break;
-                case 401: m_status = Status::UNAUTHORIZED_401; break;
-                case 100: m_status = Status::TRYING_100; break;
-                case 183: m_status = Status::SESSION_PROGRESS_183; break;
-                case 500: m_status = Status::SERVER_ERROR_500; break;
-                case 487: m_status = Status::REQUEST_CANCELLED_487; break;
-                case 407: m_status = Status::PROXY_AUTH_REQ_407; break;
-                case 603: m_status = Status::DECLINE_603; break;
-                default:  m_status = Status::UNKNOWN;
-                }
+                m_status = convert_status(code);
             }
-            else if ((strncmp("WWW-Authenticate", start_position, strlen("WWW-Authenticate")) == 0) || (strncmp("Proxy-Authenticate", start_position, strlen("Proxy-Authenticate")) == 0))
+            else if ((strncmp(WWW_AUTHENTICATE, start_position, strlen(WWW_AUTHENTICATE)) == 0)
+                    || (strncmp(PROXY_AUTHENTICATE, start_position, strlen(PROXY_AUTHENTICATE)) == 0))
             {
                 ESP_LOGV(TAG, "Detect authenticate line");
                 //read realm and nonce from authentication line
-                if (!read_param(start_position, "realm", m_realm))
+                if (!read_param(start_position, REALM, m_realm))
                 {
                     ESP_LOGW(TAG, "Failed to read realm in authenticate line");
                     //continue;
                 }
-                if (!read_param(start_position, "nonce", m_nonce))
+                if (!read_param(start_position, NONCE, m_nonce))
                 {
                     ESP_LOGW(TAG, "Failed to read nonce in authenticate line");
                     //continue;
                 }
                 ESP_LOGI(TAG, "Realm is %s and nonce is %s", m_realm.c_str(), m_nonce.c_str());
             }
-            else if (strncmp("Contact: <", start_position, strlen("Contact: <")) == 0)
+            else if (strncmp(CONTACT, start_position, strlen(CONTACT)) == 0)
             {
                 ESP_LOGV(TAG, "Detect contact line");
                 const char* last_pos = strstr(start_position, ">");
@@ -132,10 +122,10 @@ public:
                 }
                 else
                 {
-                    m_contact = std::string(start_position + strlen("Contact: <"), last_pos);
+                    m_contact = std::string(start_position + strlen(CONTACT), last_pos);
                 }
             }
-            else if (strncmp("To: ", start_position, strlen("To: ")) == 0)
+            else if (strncmp(TO, start_position, strlen(TO)) == 0)
             {
                 ESP_LOGV(TAG, "Detect to line");
                 const char* tag_pos = strstr(start_position, ">;tag=");
@@ -143,40 +133,28 @@ public:
                 {
                     m_to_tag = std::string(tag_pos + strlen(">;tag="));
                 }
-                m_to = std::string(start_position + strlen("To: "));
+                m_to = std::string(start_position + strlen(TO));
             }
-            else if (strstr(start_position, "From: ") == start_position)
+            else if (strstr(start_position, FROM) == start_position)
             {
-                m_from = std::string(start_position + strlen("From: "));
+                m_from = std::string(start_position + strlen(FROM));
             }
-            else if (strstr(start_position, "Via: ") == start_position)
+            else if (strstr(start_position, VIA) == start_position)
             {
-                m_via = std::string(start_position + strlen("Via: "));
+                m_via = std::string(start_position + strlen(VIA));
             }
-            else if (strstr(start_position, "CSeq: ") == start_position)
+            else if (strstr(start_position, C_SEQ) == start_position)
             {
-                m_cseq = std::string(start_position + strlen("CSeq: "));
+                m_cseq = std::string(start_position + strlen(C_SEQ));
             }
-            else if (strstr(start_position, "Call-ID: ") == start_position)
+            else if (strstr(start_position, CALL_ID) == start_position)
             {
-                m_call_id = std::string(start_position + strlen("Call-ID: "));
+                m_call_id = std::string(start_position + strlen(CALL_ID));
             }
             else if (line_number == 1)
             {
                 //first line, but no respone
-                if (strstr(start_position, "NOTIFY ") == start_position)
-                {
-                    m_method = Method::NOTIFY;
-                }
-                else if (strstr(start_position, "BYE ") == start_position)
-                {
-                    m_method = Method::BYE;
-                }
-                else if (strstr(start_position, "INFO ") == start_position)
-                {
-                    m_method = Method::INFO;
-                }
-
+                m_method = convert_method(start_position);
             }
 
             //go to next line
@@ -271,6 +249,39 @@ private:
         return true;
     }
 
+    Status convert_status(uint32_t code) const
+    {
+        switch (code)
+        {
+        case 200: return Status::OK_200;
+        case 401: return Status::UNAUTHORIZED_401;
+        case 100: return Status::TRYING_100;
+        case 183: return Status::SESSION_PROGRESS_183;
+        case 500: return Status::SERVER_ERROR_500;
+        case 487: return Status::REQUEST_CANCELLED_487;
+        case 407: return Status::PROXY_AUTH_REQ_407;
+        case 603: return Status::DECLINE_603;
+        }
+        return Status::UNKNOWN;
+    }
+
+    Method convert_method(const char* input) const
+    {
+        if (strstr(input, NOTIFY) == input)
+        {
+            return Method::NOTIFY;
+        }
+        if (strstr(input, BYE) == input)
+        {
+            return Method::BYE;
+        }
+        if (strstr(input, INFO) == input)
+        {
+            return Method::INFO;
+        }
+        return Method::UNKNOWN;
+    }
+
 
     const char* m_buffer;
     const size_t m_buffer_length;
@@ -292,4 +303,18 @@ private:
 
 
     static constexpr const char* TAG = "SipPacket";
+    static constexpr const char* SIP_2_0_SPACE = "SIP/2.0 ";
+    static constexpr const char* WWW_AUTHENTICATE = "WWW-Authenticate";
+    static constexpr const char* PROXY_AUTHENTICATE = "Proxy-Authenticate";
+    static constexpr const char* CONTACT = "Contact: <";
+    static constexpr const char* TO = "To: ";
+    static constexpr const char* FROM = "From: ";
+    static constexpr const char* VIA = "Via: ";
+    static constexpr const char* C_SEQ = "CSeq: ";
+    static constexpr const char* CALL_ID = "Call-ID: ";
+    static constexpr const char* REALM = "realm";
+    static constexpr const char* NONCE = "nonce";
+    static constexpr const char* NOTIFY = "NOTIFY ";
+    static constexpr const char* BYE = "BYE ";
+    static constexpr const char* INFO = "INFO ";
 };
