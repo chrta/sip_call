@@ -398,7 +398,10 @@ private:
             {
                 //other side picked up, send an ack
                 m_state = SipState::CALL_START;
-                m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_START, ' ', 0});
+                if (m_event_handler)
+                {
+                    m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_START, ' ', 0});
+                }
             }
             else if (reply == SipPacket::Status::REQUEST_CANCELLED_487)
             {
@@ -427,7 +430,10 @@ private:
             {
                 m_sip_sequence_number++;
                 m_state = SipState::REGISTERED;
-                m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_END, ' ', 0});
+                if (m_event_handler)
+                {
+                    m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_END, ' ', 0});
+                }
             }
             else if ((packet.get_method() == SipPacket::Method::INFO)
                      && (packet.get_content_type() == SipPacket::ContentType::APPLICATION_DTMF_RELAY))
