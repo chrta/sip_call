@@ -145,6 +145,21 @@ static void sip_task(void *pvParameters)
                 vTaskDelay(2000 / portTICK_RATE_MS);
                 continue;
             }
+            client.set_event_handler([](const SipClientEvent& event) {
+
+               switch (event.event)
+               {
+               case SipClientEvent::Event::CALL_START:
+                   ESP_LOGI(TAG, "Call start");
+                   break;
+               case SipClientEvent::Event::CALL_END:
+                   ESP_LOGI(TAG, "Call end");
+                   break;
+               case SipClientEvent::Event::BUTTON_PRESS:
+                   ESP_LOGI(TAG, "Got button press: %c for %d milliseconds", event.button_signal, event.button_duration);
+                   break;
+               }
+            });
         }
 
         client.run();

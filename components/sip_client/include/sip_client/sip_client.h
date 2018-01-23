@@ -24,6 +24,7 @@
 #include "boost/sml.hpp"
 #endif
 
+#include <functional>
 #include <cstdlib>
 #include <string>
 
@@ -43,6 +44,19 @@ static void rtp_task(void *pvParameters)
         ESP_LOGV("RTP", "Received %d byte", data.size());
     }
 }
+
+
+struct SipClientEvent {
+        enum class Event {
+            CALL_START,
+            CALL_END,
+            BUTTON_PRESS,
+        };
+
+        Event event;
+        char button_signal;
+        uint16_t button_duration;
+};
 
 template <class SocketT, class Md5T>
 class SipClientInt
@@ -106,6 +120,11 @@ public:
         m_user = user;
         m_pwd = password;
         m_to_uri = "sip:" + m_user + "@" + m_server_ip;
+    }
+
+    void set_event_handler(std::function<void(const SipClientEvent&)> handler)
+    {
+        m_event_handler = handler;
     }
 
     /**
@@ -379,6 +398,7 @@ private:
             {
                 //other side picked up, send an ack
                 m_state = SipState::CALL_START;
+                m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_START, ' ', 0});
             }
             else if (reply == SipPacket::Status::REQUEST_CANCELLED_487)
             {
@@ -407,11 +427,15 @@ private:
             {
                 m_sip_sequence_number++;
                 m_state = SipState::REGISTERED;
+                m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_END, ' ', 0});
             }
             else if ((packet.get_method() == SipPacket::Method::INFO)
                      && (packet.get_content_type() == SipPacket::ContentType::APPLICATION_DTMF_RELAY))
             {
-                    ESP_LOGI(TAG, "Got button press: %c for %d milliseconds", packet.get_dtmf_signal(), packet.get_dtmf_duration());
+                if (m_event_handler)
+                {
+                    m_event_handler(SipClientEvent{SipClientEvent::Event::BUTTON_PRESS, packet.get_dtmf_signal(), packet.get_dtmf_duration()});
+                }
             }
             break;
         case SipState::CANCELLED:
@@ -706,6 +730,8 @@ private:
     uint32_t m_sdp_session_id;
     Buffer<1024> m_tx_sdp_buffer;
 
+    std::function<void(const SipClientEvent &)> m_event_handler;
+
     /* FreeRTOS event group to signal commands from other tasks */
     EventGroupHandle_t m_command_event_group;
     static constexpr uint8_t COMMAND_DIAL_BIT = BIT0;
@@ -788,6 +814,11 @@ public:
     void set_credentials(const std::string& user, const std::string& password)
     {
         m_sip.set_credentials(user, password);
+    }
+
+    void set_event_handler(std::function<void(const SipClientEvent &)> handler)
+    {
+        m_sip.set_event_handler(handler);
     }
 
     /**
