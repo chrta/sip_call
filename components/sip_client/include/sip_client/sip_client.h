@@ -266,7 +266,7 @@ private:
         }
 
         SipPacket packet(recv_string.c_str(), recv_string.size());
-        if (!packet.parse_header())
+        if (!packet.parse())
         {
             ESP_LOGI(TAG, "Parsing the packet failed");
             return;
@@ -407,6 +407,11 @@ private:
             {
                 m_sip_sequence_number++;
                 m_state = SipState::REGISTERED;
+            }
+            else if ((packet.get_method() == SipPacket::Method::INFO)
+                     && (packet.get_content_type() == SipPacket::ContentType::APPLICATION_DTMF_RELAY))
+            {
+                    ESP_LOGI(TAG, "Got button press: %c for %d milliseconds", packet.get_dtmf_signal(), packet.get_dtmf_duration());
             }
             break;
         case SipState::CANCELLED:
