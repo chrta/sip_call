@@ -12,6 +12,7 @@ Tested with:
 
 * AVM Fritzbox 7390
 * AVM Fritzbox 7490
+* AVM Fritzbox 7590
 
 Programming
 -----------
@@ -63,10 +64,14 @@ To test this, two PC817 opto coupler are used to detect the AC signal (about 12V
 In series, a 2k Resistor is used. This may have to be tweaked according to the input voltage.
 The output transistors of the opto couplers are connected in parallel in the same polarity to pull the signal to ground, if a current flows through one of the input diodes. A pull up resistor (either internal in the ESP32 or external) must be used to pull the signal to 3V3 if no input current is detected and the output transistors are switched off.
 
-If the bell transformer delivers enough power, the ESP32 can be powered from it. A bridge rectifier, a big capacitor and a cheap switching regulator board can be used for that.
+Instead of two PC817 opto couplers, one PC814 can be used to detect the AC signal. Because of the different CTR, the resistor values must be tweaked.
 
 .. image:: hw/door_bell_input_schematic.svg
 	   :width: 600pt
+
+
+If the bell transformer delivers enough power, the ESP32 can be powered from it. A bridge rectifier, a big capacitor and a cheap switching regulator board can be used for that.
+
 
 License
 -------
