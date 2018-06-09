@@ -99,5 +99,5 @@ private:
 
     sml::sm<dependencies<SipClientT>> m_sm;
 
-    static constexpr uint32_t RING_DURATION_TICKS = RING_DURATION_TIMEOUT_MSEC * portTICK_PERIOD_MS;
+    static constexpr uint32_t RING_DURATION_TICKS = RING_DURATION_TIMEOUT_MSEC / portTICK_PERIOD_MS;
 };
