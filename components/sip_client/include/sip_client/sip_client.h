@@ -305,7 +305,11 @@ private:
             m_realm = packet.get_realm();
             m_nonce = packet.get_nonce();
         }
-        else if ((reply == SipPacket::Status::UNKNOWN) && ((packet.get_method() == SipPacket::Method::NOTIFY) || (packet.get_method() == SipPacket::Method::BYE)|| (packet.get_method() == SipPacket::Method::INFO)))
+        else if ((reply == SipPacket::Status::UNKNOWN) &&
+                 ((packet.get_method() == SipPacket::Method::NOTIFY) ||
+                  (packet.get_method() == SipPacket::Method::BYE) ||
+                  (packet.get_method() == SipPacket::Method::INFO) ||
+                  (packet.get_method() == SipPacket::Method::INVITE)))
         {
             send_sip_ok(packet);
         }
@@ -347,6 +351,15 @@ private:
             }
             break;
         case SipState::REGISTERED:
+            if (packet.get_method() == SipPacket::Method::INVITE)
+            {
+                    //received an invite, answered it already with ok, so new call is established, because someone called us
+                    m_state = SipState::CALL_START;
+                    if (m_event_handler)
+                    {
+                            m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_START, ' ', 0});
+                    }
+            }
             break;
         case SipState::INVITE_UNAUTH_SENT:
         case SipState::INVITE_UNAUTH:

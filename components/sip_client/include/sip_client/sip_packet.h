@@ -39,6 +39,7 @@ public:
         NOTIFY,
         BYE,
         INFO,
+        INVITE,
         UNKNOWN
     };
 
@@ -403,6 +404,10 @@ private:
         {
             return Method::INFO;
         }
+        if (strstr(input, INVITE) == input)
+        {
+            return Method::INVITE;
+        }
         return Method::UNKNOWN;
     }
 
@@ -457,6 +462,7 @@ private:
     static constexpr const char* NOTIFY = "NOTIFY ";
     static constexpr const char* BYE = "BYE ";
     static constexpr const char* INFO = "INFO ";
+    static constexpr const char* INVITE = "INVITE ";
     static constexpr const char* APPLICATION_DTMF_RELAY = "application/dtmf-relay";
     static constexpr const char* SIGNAL = "Signal=";
     static constexpr const char* DURATION = "Duration=";
