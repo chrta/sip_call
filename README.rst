@@ -19,7 +19,7 @@ Programming
 
 The source code is mixed C and C++. A transition to boost:sml is in progress.
 
-This application is to be used with `Espressif IoT Development Framework`_ (ESP-IDF). It is tested with revision 4f44d16e88cf73dcc4999ca6dab28c44aaeed8db
+This application is to be used with `Espressif IoT Development Framework`_ (ESP-IDF). It is tested with revision 020ade652d9b6b0b87b0bebe176a150cc4407749
 
 Please check ESP-IDF docs for getting started instructions.
 
@@ -65,6 +65,7 @@ In series, a 2k Resistor is used. This may have to be tweaked according to the i
 The output transistors of the opto couplers are connected in parallel in the same polarity to pull the signal to ground, if a current flows through one of the input diodes. A pull up resistor (either internal in the ESP32 or external) must be used to pull the signal to 3V3 if no input current is detected and the output transistors are switched off.
 
 Instead of two PC817 opto couplers, one PC814 can be used to detect the AC signal. Because of the different CTR, the resistor values must be tweaked.
+If it is sufficient to only detect one half-wave of the AC signal (this is normally the case) one PC817 opto coupler and a simple diode (e.g. 1N4148) is sufficient. The diode ensures that the voltage of the input diode of the opto coupler is not above the threshold. The 1N4148 must be connected anti-parallel to the input diode of the PC817.
 
 .. image:: hw/door_bell_input_schematic.svg
 	   :width: 600pt
