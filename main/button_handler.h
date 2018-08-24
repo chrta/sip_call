@@ -26,6 +26,7 @@
 namespace sml = boost::sml;
 
 struct e_btn {};
+struct e_call_end {};
 struct e_timeout {};
 
 template<class SipClientT>
@@ -44,8 +45,14 @@ struct dependencies {
         return make_transition_table(
                 *"idle"_s        + event<e_btn> / action_call = "sRinging"_s
                 , "sRinging"_s   + event<e_timeout> / action_cancel = "idle"_s
+                , "sRinging"_s   + event<e_call_end> = "idle"_s
         );
     }
+};
+
+enum class Event {
+    BUTTON_PRESS,
+    CALL_END
 };
 
 template<class SipClientT, gpio_num_t GPIO_PIN, int RING_DURATION_TIMEOUT_MSEC>
@@ -56,7 +63,7 @@ public:
     : m_client{client}
     , m_sm{client}
     {
-        m_queue = xQueueCreate(10, sizeof(uint32_t));
+        m_queue = xQueueCreate(10, sizeof(Event));
 
         gpio_config_t gpioConfig;
         gpioConfig.pin_bit_mask = (1ULL << GPIO_PIN);
@@ -74,15 +81,25 @@ public:
         using namespace sml;
         for (;;)
         {
-            uint32_t io_num;
+            Event event;
             TickType_t timeout = m_sm.is("idle"_s) ? portMAX_DELAY : RING_DURATION_TICKS;
 
-            if(xQueueReceive(m_queue, &io_num, timeout)) {
-                m_sm.process_event(e_btn{});
+            if(xQueueReceive(m_queue, &event, timeout)) {
+                if (event == Event::BUTTON_PRESS) {
+                    m_sm.process_event(e_btn{});
+                } else if (event == Event::CALL_END) {
+                    m_sm.process_event(e_call_end{});
+                }
             } else {
                 m_sm.process_event(e_timeout{});
             }
         }
+    }
+
+    void call_end() {
+        Event event = Event::CALL_END;
+        // don't wait if the queue is full
+        xQueueSend(m_queue, &event, ( TickType_t ) 0);
     }
 
 private:
@@ -93,8 +110,8 @@ private:
 
     static void int_handler(void *args) {
         ButtonInputHandlerT* obj  = static_cast<ButtonInputHandlerT*>(args);
-        uint32_t gpio = 0;
-        xQueueSendToBackFromISR(obj->m_queue, &gpio, NULL);
+        Event event = Event::BUTTON_PRESS;
+        xQueueSendToBackFromISR(obj->m_queue, &event, NULL);
     }
 
     sml::sm<dependencies<SipClientT>> m_sm;

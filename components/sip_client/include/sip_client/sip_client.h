@@ -49,6 +49,7 @@ static void rtp_task(void *pvParameters)
 struct SipClientEvent {
         enum class Event {
             CALL_START,
+            CALL_CANCELLED,
             CALL_END,
             BUTTON_PRESS,
         };
@@ -419,6 +420,10 @@ private:
             else if (reply == SipPacket::Status::REQUEST_CANCELLED_487)
             {
                 m_state = SipState::CANCELLED;
+                if (m_event_handler)
+                {
+                    m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_CANCELLED, ' ', 0});
+                }
             }
             else if (reply == SipPacket::Status::PROXY_AUTH_REQ_407)
             {
@@ -431,9 +436,13 @@ private:
             {
                 send_sip_ack();
                 m_sip_sequence_number++;
+                m_branch = std::rand() % 2147483647;
                 m_state = SipState::REGISTERED;
+                if (m_event_handler)
+                {
+                    m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_CANCELLED, ' ', 0});
+                }
             }
-
             break;
         case SipState::CALL_START:
             //should not reach this point
@@ -514,7 +523,7 @@ private:
         tx_buffer << "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO\r\n";
         m_tx_sdp_buffer.clear();
         m_tx_sdp_buffer << "v=0\r\n"
-                << "o=620 " << m_sdp_session_id << " " << m_sdp_session_id << " IN IP4 " << m_my_ip << "\r\n"
+                << "o=" << m_user << " " << m_sdp_session_id << " " << m_sdp_session_id << " IN IP4 " << m_my_ip << "\r\n"
                 << "s=sip-client/0.0.1\r\n"
                 << "c=IN IP4 " << m_my_ip << "\r\n"
                 << "t=0 0\r\n"

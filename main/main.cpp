@@ -127,6 +127,7 @@ static void initialize_wifi(void)
     esp_wifi_set_ps(DEFAULT_PS_MODE);
 }
 
+ButtonInputHandler<SipClientT, BELL_GPIO_PIN, RING_DURATION_TIMEOUT_MSEC> button_input_handler(client);
 
 static void sip_task(void *pvParameters)
 {
@@ -152,8 +153,13 @@ static void sip_task(void *pvParameters)
                case SipClientEvent::Event::CALL_START:
                    ESP_LOGI(TAG, "Call start");
                    break;
+               case SipClientEvent::Event::CALL_CANCELLED:
+                   ESP_LOGI(TAG, "Call cancelled");
+                   button_input_handler.call_end();
+                   break;
                case SipClientEvent::Event::CALL_END:
                    ESP_LOGI(TAG, "Call end");
+                   button_input_handler.call_end();
                    break;
                case SipClientEvent::Event::BUTTON_PRESS:
                    ESP_LOGI(TAG, "Got button press: %c for %d milliseconds", event.button_signal, event.button_duration);
@@ -165,8 +171,6 @@ static void sip_task(void *pvParameters)
         client.run();
     }
 }
-
-ButtonInputHandler<SipClientT, BELL_GPIO_PIN, RING_DURATION_TIMEOUT_MSEC> button_input_handler(client);
 
 extern "C" void app_main(void)
 {
