@@ -154,7 +154,7 @@ static void sip_task(void *pvParameters)
                    ESP_LOGI(TAG, "Call start");
                    break;
                case SipClientEvent::Event::CALL_CANCELLED:
-                   ESP_LOGI(TAG, "Call cancelled");
+                   ESP_LOGI(TAG, "Call cancelled, reason %d", (int) event.cancel_reason);
                    button_input_handler.call_end();
                    break;
                case SipClientEvent::Event::CALL_END:

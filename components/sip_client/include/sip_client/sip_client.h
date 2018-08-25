@@ -54,9 +54,16 @@ struct SipClientEvent {
             BUTTON_PRESS,
         };
 
+        enum class CancelReason {
+            UNKNOWN,
+            CALL_DECLINED,
+            TARGET_BUSY,
+        };
+
         Event event;
         char button_signal;
         uint16_t button_duration;
+	CancelReason cancel_reason;
 };
 
 template <class SocketT, class Md5T>
@@ -358,7 +365,7 @@ private:
                     m_state = SipState::CALL_START;
                     if (m_event_handler)
                     {
-                            m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_START, ' ', 0});
+                            m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_START, ' ', 0, SipClientEvent::CancelReason::UNKNOWN});
                     }
             }
             break;
@@ -414,7 +421,7 @@ private:
                 m_state = SipState::CALL_START;
                 if (m_event_handler)
                 {
-                    m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_START, ' ', 0});
+                    m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_START, ' ', 0, SipClientEvent::CancelReason::UNKNOWN});
                 }
             }
             else if (reply == SipPacket::Status::REQUEST_CANCELLED_487)
@@ -422,7 +429,7 @@ private:
                 m_state = SipState::CANCELLED;
                 if (m_event_handler)
                 {
-                    m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_CANCELLED, ' ', 0});
+                    m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_CANCELLED, ' ', 0, SipClientEvent::CancelReason::UNKNOWN});
                 }
             }
             else if (reply == SipPacket::Status::PROXY_AUTH_REQ_407)
@@ -438,9 +445,14 @@ private:
                 m_sip_sequence_number++;
                 m_branch = std::rand() % 2147483647;
                 m_state = SipState::REGISTERED;
+                SipClientEvent::CancelReason cancel_reason = SipClientEvent::CancelReason::CALL_DECLINED;
+                if (reply == SipPacket::Status::BUSY_HERE_486)
+                {
+                    cancel_reason = SipClientEvent::CancelReason::TARGET_BUSY;
+                }
                 if (m_event_handler)
                 {
-                    m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_CANCELLED, ' ', 0});
+                    m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_CANCELLED, ' ', 0, cancel_reason});
                 }
             }
             break;
@@ -454,7 +466,7 @@ private:
                 m_state = SipState::REGISTERED;
                 if (m_event_handler)
                 {
-                    m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_END, ' ', 0});
+                    m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_END, ' ', 0, SipClientEvent::CancelReason::UNKNOWN});
                 }
             }
             else if ((packet.get_method() == SipPacket::Method::INFO)
@@ -462,7 +474,7 @@ private:
             {
                 if (m_event_handler)
                 {
-                    m_event_handler(SipClientEvent{SipClientEvent::Event::BUTTON_PRESS, packet.get_dtmf_signal(), packet.get_dtmf_duration()});
+                    m_event_handler(SipClientEvent{SipClientEvent::Event::BUTTON_PRESS, packet.get_dtmf_signal(), packet.get_dtmf_duration(), SipClientEvent::CancelReason::UNKNOWN});
                 }
             }
             break;
