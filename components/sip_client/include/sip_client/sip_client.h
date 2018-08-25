@@ -432,7 +432,7 @@ private:
                 m_state = SipState::INVITE_AUTH;
                 ESP_LOGV(TAG, "Go back to send invite with auth...");
             }
-            else if (reply == SipPacket::Status::DECLINE_603)
+            else if ((reply == SipPacket::Status::DECLINE_603) || (reply == SipPacket::Status::BUSY_HERE_486))
             {
                 send_sip_ack();
                 m_sip_sequence_number++;

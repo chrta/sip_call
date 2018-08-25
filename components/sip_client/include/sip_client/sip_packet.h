@@ -29,6 +29,7 @@ public:
         OK_200,
         UNAUTHORIZED_401,
         PROXY_AUTH_REQ_407,
+        BUSY_HERE_486,
         REQUEST_CANCELLED_487,
         SERVER_ERROR_500,
         DECLINE_603,
@@ -383,6 +384,7 @@ private:
         case 100: return Status::TRYING_100;
         case 183: return Status::SESSION_PROGRESS_183;
         case 500: return Status::SERVER_ERROR_500;
+        case 486: return Status::BUSY_HERE_486;
         case 487: return Status::REQUEST_CANCELLED_487;
         case 407: return Status::PROXY_AUTH_REQ_407;
         case 603: return Status::DECLINE_603;
