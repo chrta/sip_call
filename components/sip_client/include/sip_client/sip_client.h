@@ -61,9 +61,9 @@ struct SipClientEvent {
         };
 
         Event event;
-        char button_signal;
-        uint16_t button_duration;
-	CancelReason cancel_reason;
+        char button_signal = ' ';
+        uint16_t button_duration = 0;
+        CancelReason cancel_reason = CancelReason::UNKNOWN;
 };
 
 template <class SocketT, class Md5T>
@@ -365,7 +365,7 @@ private:
                     m_state = SipState::CALL_START;
                     if (m_event_handler)
                     {
-                            m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_START, ' ', 0, SipClientEvent::CancelReason::UNKNOWN});
+                            m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_START});
                     }
             }
             break;
@@ -421,7 +421,7 @@ private:
                 m_state = SipState::CALL_START;
                 if (m_event_handler)
                 {
-                    m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_START, ' ', 0, SipClientEvent::CancelReason::UNKNOWN});
+                    m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_START});
                 }
             }
             else if (reply == SipPacket::Status::REQUEST_CANCELLED_487)
@@ -429,7 +429,7 @@ private:
                 m_state = SipState::CANCELLED;
                 if (m_event_handler)
                 {
-                    m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_CANCELLED, ' ', 0, SipClientEvent::CancelReason::UNKNOWN});
+                    m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_CANCELLED});
                 }
             }
             else if (reply == SipPacket::Status::PROXY_AUTH_REQ_407)
@@ -466,7 +466,7 @@ private:
                 m_state = SipState::REGISTERED;
                 if (m_event_handler)
                 {
-                    m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_END, ' ', 0, SipClientEvent::CancelReason::UNKNOWN});
+                    m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_END});
                 }
             }
             else if ((packet.get_method() == SipPacket::Method::INFO)
@@ -474,7 +474,7 @@ private:
             {
                 if (m_event_handler)
                 {
-                    m_event_handler(SipClientEvent{SipClientEvent::Event::BUTTON_PRESS, packet.get_dtmf_signal(), packet.get_dtmf_duration(), SipClientEvent::CancelReason::UNKNOWN});
+                    m_event_handler(SipClientEvent{SipClientEvent::Event::BUTTON_PRESS, packet.get_dtmf_signal(), packet.get_dtmf_duration()});
                 }
             }
             break;
