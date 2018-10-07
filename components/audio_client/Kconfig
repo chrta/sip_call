@@ -1,0 +1,10 @@
+config ENABLE_SIP_AUDIO_CLIENT
+    bool "Enable audio functionality"
+    help
+        Select this if you want audio support (e.g. voice).
+
+config ENABLE_SIP_AUDIO_CODEC_G711
+    bool "Enable G711 audio codec"
+    depends on ENABLE_SIP_AUDIO_CLIENT
+    help
+        Select this to support g711 audio codec
