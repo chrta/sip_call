@@ -1,9 +1,12 @@
-#pragma once
-#include <driver/adc.h>
+
+#include "driver/adc.h"
 #include "driver/timer.h"
-#include "codec/g711.c"
 #include "lwip/ip4_addr.h"
-#include "rtp.h"
+
+#include "audio_client/codec/g711.h"
+#include "audio_client/rtp.h"
+
+#include <string.h>
 
 // audio buffer
 #define AUDIO_BUFFER_MAX 800
@@ -18,8 +21,8 @@ bool transmitNow = false;
 int audio_codec = -1; // should be 0 or 8 (PCMU, PCMA; first given in SDP header SHOULD be used)
 
 // IP and Port of RTP receiver
-IPAddress rtpAddress;
-int rtpPort;
+//IPAddress rtpAddress;
+//uint16_t rtpPort;
 
 // Timer handle for audio AD conversion
 static intr_handle_t s_timer_handle;
