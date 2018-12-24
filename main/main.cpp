@@ -113,7 +113,7 @@ static void initialize_wifi(void)
     ESP_ERROR_CHECK( esp_wifi_init(&cfg) );
     ESP_ERROR_CHECK( esp_wifi_set_storage(WIFI_STORAGE_RAM) );
 
-    wifi_config_t wifi_config;
+    wifi_config_t wifi_config = {};
     strncpy((char*)wifi_config.sta.ssid, CONFIG_WIFI_SSID, sizeof(wifi_config.sta.ssid));
     strncpy((char*)wifi_config.sta.password, CONFIG_WIFI_PASSWORD, sizeof(wifi_config.sta.password));
     wifi_config.sta.bssid_set = false;
