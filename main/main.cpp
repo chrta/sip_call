@@ -33,7 +33,6 @@
 
 
 static constexpr auto BELL_GPIO_PIN = static_cast<gpio_num_t>(CONFIG_BELL_INPUT_GPIO);
-// GPIO_NUM_23 is connected to the opto coupler
 static constexpr auto RING_DURATION_TIMEOUT_MSEC = CONFIG_RING_DURATION;
 
 #if CONFIG_POWER_SAVE_MODEM
@@ -67,10 +66,16 @@ static std::string ip_to_string(const ip4_addr_t *ip)
     return std::string(buffer);
 }
 
-static std::string get_gw_ip_address(const system_event_sta_got_ip_t *got_ip)
+// static std::string get_gw_ip_address(const system_event_sta_got_ip_t *got_ip)
+// {
+//     const ip4_addr_t *gateway = &got_ip->ip_info.gw;
+//     return ip_to_string(gateway);
+// }
+
+//rozwiazanie ip bramy zamiast srv ~sikor
+static std::string get_srv_ip_address()
 {
-    const ip4_addr_t *gateway = &got_ip->ip_info.gw;
-    return ip_to_string(gateway);
+    return CONFIG_SIP_SERVER_IP;
 }
 
 static std::string get_local_ip_address(const system_event_sta_got_ip_t *got_ip)
@@ -88,7 +93,9 @@ static esp_err_t event_handler(void *ctx, system_event_t *event)
     case SYSTEM_EVENT_STA_GOT_IP:
     {
         system_event_sta_got_ip_t *got_ip = &event->event_info.got_ip;
-        client.set_server_ip(get_gw_ip_address(got_ip));
+        /* tutaj problem z ip bramy zamiast srv ~sikor 
+        client.set_server_ip(get_gw_ip_address(got_ip));*/
+        client.set_server_ip(get_srv_ip_address());
         client.set_my_ip(get_local_ip_address(got_ip));
         xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
     }
@@ -113,7 +120,8 @@ static void initialize_wifi(void)
     ESP_ERROR_CHECK( esp_wifi_init(&cfg) );
     ESP_ERROR_CHECK( esp_wifi_set_storage(WIFI_STORAGE_RAM) );
 
-    wifi_config_t wifi_config = {};
+    wifi_config_t wifi_config;
+    memset(&wifi_config, 0 , sizeof (wifi_config));
     strncpy((char*)wifi_config.sta.ssid, CONFIG_WIFI_SSID, sizeof(wifi_config.sta.ssid));
     strncpy((char*)wifi_config.sta.password, CONFIG_WIFI_PASSWORD, sizeof(wifi_config.sta.password));
     wifi_config.sta.bssid_set = false;
@@ -146,6 +154,7 @@ static void sip_task(void *pvParameters)
                 vTaskDelay(2000 / portTICK_RATE_MS);
                 continue;
             }
+
             client.set_event_handler([](const SipClientEvent& event) {
 
                switch (event.event)
@@ -160,6 +169,8 @@ static void sip_task(void *pvParameters)
                case SipClientEvent::Event::CALL_END:
                    ESP_LOGI(TAG, "Call end");
                    button_input_handler.call_end();
+                   vTaskDelay(500 / portTICK_RATE_MS);
+                   i2s_pause();
                    break;
                case SipClientEvent::Event::BUTTON_PRESS:
                    ESP_LOGI(TAG, "Got button press: %c for %d milliseconds", event.button_signal, event.button_duration);
