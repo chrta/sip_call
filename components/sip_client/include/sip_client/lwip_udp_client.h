@@ -56,6 +56,16 @@ public:
         strncat(m_buffer.data(), str.c_str(), m_buffer.size() - strlen(m_buffer.data()) - 1);
         return *this;
     }
+    Buffer<SIZE>& operator<<(int8_t i)
+    {
+        snprintf(m_buffer.data() + strlen(m_buffer.data()), m_buffer.size() - strlen(m_buffer.data()), "%c", i);
+        return *this;
+    }
+    Buffer<SIZE>& operator<<(uint8_t i)
+    {
+        snprintf(m_buffer.data() + strlen(m_buffer.data()), m_buffer.size() - strlen(m_buffer.data()), "%c", i);
+        return *this;
+    }
     Buffer<SIZE>& operator<<(uint16_t i)
     {
         snprintf(m_buffer.data() + strlen(m_buffer.data()), m_buffer.size() - strlen(m_buffer.data()), "%d", i);
@@ -107,6 +117,14 @@ public:
             deinit();
         }
         m_server_ip = server_ip;
+    }
+    void set_server_port(const std::string& server_port)
+    {
+        if (is_initialized())
+        {
+            deinit();
+        }
+        m_server_port = server_port;
     }
 
     void deinit()
@@ -242,7 +260,8 @@ public:
 
 
 private:
-    const std::string m_server_port;
+    // const std::string m_server_port;
+    std::string m_server_port;
     std::string m_server_ip;
     const uint16_t m_local_port;
 

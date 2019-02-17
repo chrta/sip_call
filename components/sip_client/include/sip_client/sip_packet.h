@@ -18,6 +18,7 @@
 
 #include "esp_log.h"
 #include <cstring>
+#include <iostream>
 
 class SipPacket
 {
@@ -146,6 +147,14 @@ public:
     uint16_t get_dtmf_duration() const
     {
         return m_dtmf_duration;
+    }
+    std::string get_media() const
+    {
+        return m_media;
+    }
+    std::string get_cip() const
+    {
+        return m_cip;
     }
 
 private:
@@ -339,6 +348,14 @@ private:
                     m_dtmf_duration = duration;
                 }
             }
+            else if (strstr(start_position, MEDIA) == start_position)
+            {
+                m_media = std::string(start_position + strlen(MEDIA));
+            }
+            else if (strstr(start_position, CIP) == start_position)
+            {
+                m_cip = std::string(start_position + strlen(CIP));
+            }
 
             //go to next line
             start_position = next_start_position;
@@ -430,6 +447,9 @@ private:
     ContentType m_content_type;
     uint32_t m_content_length;
 
+    std::string m_media;
+    std::string m_cip;
+
     std::string m_realm;
     std::string m_nonce;
     std::string m_contact;
@@ -468,4 +488,6 @@ private:
     static constexpr const char* APPLICATION_DTMF_RELAY = "application/dtmf-relay";
     static constexpr const char* SIGNAL = "Signal=";
     static constexpr const char* DURATION = "Duration=";
+    static constexpr const char* MEDIA = "m=";
+    static constexpr const char* CIP = "c=IN IP4 ";
 };
