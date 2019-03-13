@@ -1,7 +1,7 @@
 ESP32 simple VoIP phone
 ===========================
 
-.. image:: img/dev.tiff
+.. image:: img/dev.png
 	   :width: 600pt
 
 On startup the application associates with the compiled in wlan access point and registers on the SIP server.
@@ -30,14 +30,14 @@ An ESP32 board can be used. Only one external GPIO (input is sufficient) must be
 
 The software has been adapted for use on the WEMOS LOLIN32 development board with an integrated 0.96" monochrome OLED SSD1306 display, informing about the state of the device.
 
-.. image:: img/main.tiff
+.. image:: img/main.png
 	   :width: 600pt
 
 The audio output is dealt with by the DAC stereo decoder on the I2S bus, model UDA1334A from Adafruit, while the sound sampling system is the MEMS I2S microphone model SPH0645LM4H, also manufactured by Adafruit.
 
 In order to verify the built-in VoIP client, the Asterisk VoIP server was launched in the test environment and the voice connection was successfully completed. RAM usage fluctuated around 319 kB from ESP32 512 kB available in ESP32.
 
-.. image:: img/testcall.tiff
+.. image:: img/testcall.png
 	   :width: 600pt
 
 The maximum jiiter in the stream from the built-in device was 5.1 ms, while the average was 4.14 ms - achieved value jitter is acceptable for a typical VoIP client.
