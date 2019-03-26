@@ -24,15 +24,14 @@
 #include "boost/sml.hpp"
 #endif
 
-#include <functional>
 #include <cstdlib>
+#include <functional>
 #include <string>
 
-
-static void rtp_task(void *pvParameters)
+static void rtp_task(void* pvParameters)
 {
-    LwipUdpClient *socket = (LwipUdpClient *) pvParameters;
-    for(;;)
+    LwipUdpClient* socket = (LwipUdpClient*)pvParameters;
+    for (;;)
     {
         if (!socket->is_initialized())
         {
@@ -45,25 +44,27 @@ static void rtp_task(void *pvParameters)
     }
 }
 
+struct SipClientEvent
+{
+    enum class Event
+    {
+        CALL_START,
+        CALL_CANCELLED,
+        CALL_END,
+        BUTTON_PRESS,
+    };
 
-struct SipClientEvent {
-        enum class Event {
-            CALL_START,
-            CALL_CANCELLED,
-            CALL_END,
-            BUTTON_PRESS,
-        };
+    enum class CancelReason
+    {
+        UNKNOWN,
+        CALL_DECLINED,
+        TARGET_BUSY,
+    };
 
-        enum class CancelReason {
-            UNKNOWN,
-            CALL_DECLINED,
-            TARGET_BUSY,
-        };
-
-        Event event;
-        char button_signal = ' ';
-        uint16_t button_duration = 0;
-        CancelReason cancel_reason = CancelReason::UNKNOWN;
+    Event event;
+    char button_signal = ' ';
+    uint16_t button_duration = 0;
+    CancelReason cancel_reason = CancelReason::UNKNOWN;
 };
 
 template <class SocketT, class Md5T>
@@ -71,24 +72,24 @@ class SipClientInt
 {
 public:
     SipClientInt(const std::string& user, const std::string& pwd, const std::string& server_ip, const std::string& server_port, const std::string& my_ip)
-    : m_socket(server_ip, server_port, LOCAL_PORT)
-    , m_rtp_socket(server_ip, "7078", LOCAL_RTP_PORT)
-    , m_server_ip(server_ip)
-    , m_user(user)
-    , m_pwd(pwd)
-    , m_my_ip(my_ip)
-    , m_uri("sip:" + server_ip)
-    , m_to_uri("sip:" + user + "@" + server_ip)
-    , m_sip_sequence_number(std::rand() % 2147483647)
-    , m_call_id(std::rand() % 2147483647)
-    , m_response("")
-    , m_realm("")
-    , m_nonce("")
-    , m_tag(std::rand() % 2147483647)
-    , m_branch(std::rand() % 2147483647)
-    , m_caller_display(m_user)
-    , m_sdp_session_id(0)
-    , m_command_event_group(xEventGroupCreate())
+        : m_socket(server_ip, server_port, LOCAL_PORT)
+        , m_rtp_socket(server_ip, "7078", LOCAL_RTP_PORT)
+        , m_server_ip(server_ip)
+        , m_user(user)
+        , m_pwd(pwd)
+        , m_my_ip(my_ip)
+        , m_uri("sip:" + server_ip)
+        , m_to_uri("sip:" + user + "@" + server_ip)
+        , m_sip_sequence_number(std::rand() % 2147483647)
+        , m_call_id(std::rand() % 2147483647)
+        , m_response("")
+        , m_realm("")
+        , m_nonce("")
+        , m_tag(std::rand() % 2147483647)
+        , m_branch(std::rand() % 2147483647)
+        , m_caller_display(m_user)
+        , m_sdp_session_id(0)
+        , m_command_event_group(xEventGroupCreate())
     {
         xTaskCreate(&rtp_task, "rtp_task", 4096, &m_rtp_socket, 4, NULL);
     }
@@ -148,7 +149,7 @@ public:
             ESP_LOGI(TAG, "Request to call %s...", local_number.c_str());
             m_call_id = std::rand() % 2147483647;
             m_uri = "sip:" + local_number + "@" + m_server_ip;
-            m_to_uri = "sip:" + local_number + "@" +  m_server_ip;
+            m_to_uri = "sip:" + local_number + "@" + m_server_ip;
             m_caller_display = caller_display;
             xEventGroupSetBits(m_command_event_group, COMMAND_DIAL_BIT);
         }
@@ -169,11 +170,17 @@ public:
         rx();
     }
 
+    void deinit()
+    {
+        m_socket.deinit();
+    }
+
     //empty test function for sml transition
     void test() const {}
 
 private:
-    enum class SipState {
+    enum class SipState
+    {
         IDLE,
         REGISTER_UNAUTH,
         REGISTER_AUTH,
@@ -187,7 +194,6 @@ private:
         CANCELLED,
         ERROR,
     };
-
 
     void tx()
     {
@@ -300,7 +306,7 @@ private:
         }
 
         SipPacket::Status reply = packet.get_status();
-        ESP_LOGI(TAG, "Parsing the packet ok, reply code=%d", (int) packet.get_status());
+        ESP_LOGI(TAG, "Parsing the packet ok, reply code=%d", (int)packet.get_status());
 
         if (reply == SipPacket::Status::SERVER_ERROR_500)
         {
@@ -313,11 +319,7 @@ private:
             m_realm = packet.get_realm();
             m_nonce = packet.get_nonce();
         }
-        else if ((reply == SipPacket::Status::UNKNOWN) &&
-                 ((packet.get_method() == SipPacket::Method::NOTIFY) ||
-                  (packet.get_method() == SipPacket::Method::BYE) ||
-                  (packet.get_method() == SipPacket::Method::INFO) ||
-                  (packet.get_method() == SipPacket::Method::INVITE)))
+        else if ((reply == SipPacket::Status::UNKNOWN) && ((packet.get_method() == SipPacket::Method::NOTIFY) || (packet.get_method() == SipPacket::Method::BYE) || (packet.get_method() == SipPacket::Method::INFO) || (packet.get_method() == SipPacket::Method::INVITE)))
         {
             send_sip_ok(packet);
         }
@@ -350,7 +352,7 @@ private:
                 m_response = "";
                 ESP_LOGI(TAG, "OK :)");
                 m_uri = "sip:**613@" + m_server_ip;
-                m_to_uri = "sip:**613@" +  m_server_ip;
+                m_to_uri = "sip:**613@" + m_server_ip;
                 m_state = SipState::REGISTERED;
             }
             else
@@ -361,12 +363,12 @@ private:
         case SipState::REGISTERED:
             if (packet.get_method() == SipPacket::Method::INVITE)
             {
-                    //received an invite, answered it already with ok, so new call is established, because someone called us
-                    m_state = SipState::CALL_START;
-                    if (m_event_handler)
-                    {
-                            m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_START});
-                    }
+                //received an invite, answered it already with ok, so new call is established, because someone called us
+                m_state = SipState::CALL_START;
+                if (m_event_handler)
+                {
+                    m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_START });
+                }
             }
             break;
         case SipState::INVITE_UNAUTH_SENT:
@@ -377,7 +379,7 @@ private:
                 send_sip_ack();
                 m_sip_sequence_number++;
             }
-            else if((reply == SipPacket::Status::OK_200) || (reply == SipPacket::Status::SESSION_PROGRESS_183))
+            else if ((reply == SipPacket::Status::OK_200) || (reply == SipPacket::Status::SESSION_PROGRESS_183))
             {
                 m_state = SipState::RINGING;
                 m_nonce = "";
@@ -395,7 +397,7 @@ private:
             {
                 m_state = SipState::ERROR;
             }
-            else if((reply == SipPacket::Status::OK_200) || (reply == SipPacket::Status::SESSION_PROGRESS_183) || (reply == SipPacket::Status::TRYING_100))
+            else if ((reply == SipPacket::Status::OK_200) || (reply == SipPacket::Status::SESSION_PROGRESS_183) || (reply == SipPacket::Status::TRYING_100))
             {
                 //trying is not yet ringing, but change state to not send invite again
                 m_state = SipState::RINGING;
@@ -421,7 +423,7 @@ private:
                 m_state = SipState::CALL_START;
                 if (m_event_handler)
                 {
-                    m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_START});
+                    m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_START });
                 }
             }
             else if (reply == SipPacket::Status::REQUEST_CANCELLED_487)
@@ -429,7 +431,7 @@ private:
                 m_state = SipState::CANCELLED;
                 if (m_event_handler)
                 {
-                    m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_CANCELLED});
+                    m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_CANCELLED });
                 }
             }
             else if (reply == SipPacket::Status::PROXY_AUTH_REQ_407)
@@ -452,7 +454,7 @@ private:
                 }
                 if (m_event_handler)
                 {
-                    m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_CANCELLED, ' ', 0, cancel_reason});
+                    m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_CANCELLED, ' ', 0, cancel_reason });
                 }
             }
             break;
@@ -466,15 +468,15 @@ private:
                 m_state = SipState::REGISTERED;
                 if (m_event_handler)
                 {
-                    m_event_handler(SipClientEvent{SipClientEvent::Event::CALL_END});
+                    m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_END });
                 }
             }
             else if ((packet.get_method() == SipPacket::Method::INFO)
-                     && (packet.get_content_type() == SipPacket::ContentType::APPLICATION_DTMF_RELAY))
+                && (packet.get_content_type() == SipPacket::ContentType::APPLICATION_DTMF_RELAY))
             {
                 if (m_event_handler)
                 {
-                    m_event_handler(SipClientEvent{SipClientEvent::Event::BUTTON_PRESS, packet.get_dtmf_signal(), packet.get_dtmf_duration()});
+                    m_event_handler(SipClientEvent { SipClientEvent::Event::BUTTON_PRESS, packet.get_dtmf_signal(), packet.get_dtmf_duration() });
                 }
             }
             break;
@@ -535,16 +537,16 @@ private:
         tx_buffer << "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO\r\n";
         m_tx_sdp_buffer.clear();
         m_tx_sdp_buffer << "v=0\r\n"
-                << "o=" << m_user << " " << m_sdp_session_id << " " << m_sdp_session_id << " IN IP4 " << m_my_ip << "\r\n"
-                << "s=sip-client/0.0.1\r\n"
-                << "c=IN IP4 " << m_my_ip << "\r\n"
-                << "t=0 0\r\n"
-                << "m=audio "<< LOCAL_RTP_PORT << " RTP/AVP 0 8 101\r\n"
-                //<< "a=sendrecv\r\n"
-                << "a=recvonly\r\n"
-                << "a=rtpmap:101 telephone-event/8000\r\n"
-                << "a=fmtp:101 0-15\r\n"
-                << "a=ptime:20\r\n";
+                        << "o=" << m_user << " " << m_sdp_session_id << " " << m_sdp_session_id << " IN IP4 " << m_my_ip << "\r\n"
+                        << "s=sip-client/0.0.1\r\n"
+                        << "c=IN IP4 " << m_my_ip << "\r\n"
+                        << "t=0 0\r\n"
+                        << "m=audio " << LOCAL_RTP_PORT << " RTP/AVP 0 8 101\r\n"
+                        //<< "a=sendrecv\r\n"
+                        << "a=recvonly\r\n"
+                        << "a=rtpmap:101 telephone-event/8000\r\n"
+                        << "a=fmtp:101 0-15\r\n"
+                        << "a=ptime:20\r\n";
 
         tx_buffer << "Content-Length: " << m_tx_sdp_buffer.size() << "\r\n";
         tx_buffer << "\r\n";
@@ -662,7 +664,7 @@ private:
         stream << "From: " << packet.get_from() << "\r\n";
         stream << "Via: " << packet.get_via() << "\r\n";
         stream << "CSeq: " << packet.get_cseq() << "\r\n";
-        stream << "Call-ID: " << packet.get_call_id()  << "\r\n";
+        stream << "Call-ID: " << packet.get_call_id() << "\r\n";
         stream << "Max-Forwards: 70\r\n";
     }
 
@@ -690,7 +692,7 @@ private:
         std::string ha2_text;
         unsigned char hash[16];
 
-        m_response= "";
+        m_response = "";
         std::string data = m_user + ":" + m_realm + ":" + m_pwd;
 
         m_md5.start();
@@ -719,7 +721,7 @@ private:
         ESP_LOGV(TAG, "Hex response is %s", m_response.c_str());
     }
 
-    void to_hex(std::string& dest, const unsigned char *data, int len)
+    void to_hex(std::string& dest, const unsigned char* data, int len)
     {
         static const char hexits[17] = "0123456789abcdef";
 
@@ -728,20 +730,20 @@ private:
         for (int i = 0; i < len; i++)
         {
             dest.push_back(hexits[data[i] >> 4]);
-            dest.push_back(hexits[data[i] &  0x0F]);
+            dest.push_back(hexits[data[i] & 0x0F]);
         }
     }
 
     void log_state_transition(SipState old_state, SipState new_state)
     {
-        ESP_LOGI(TAG, "New state %d -> %d", (int) old_state, (int) new_state);
+        ESP_LOGI(TAG, "New state %d -> %d", (int)old_state, (int)new_state);
     }
 
     SipState m_state = SipState::IDLE;
 
     SocketT m_socket;
     SocketT m_rtp_socket;
-    Md5T    m_md5;
+    Md5T m_md5;
     std::string m_server_ip;
 
     std::string m_user;
@@ -770,7 +772,7 @@ private:
     uint32_t m_sdp_session_id;
     Buffer<1024> m_tx_sdp_buffer;
 
-    std::function<void(const SipClientEvent &)> m_event_handler;
+    std::function<void(const SipClientEvent&)> m_event_handler;
 
     /* FreeRTOS event group to signal commands from other tasks */
     EventGroupHandle_t m_command_event_group;
@@ -778,58 +780,64 @@ private:
     static constexpr uint8_t COMMAND_CANCEL_BIT = BIT1;
 
     static constexpr const uint16_t LOCAL_PORT = 5060;
-    static constexpr const char* TRANSPORT_LOWER= "udp";
-    static constexpr const char* TRANSPORT_UPPER= "UDP";
+    static constexpr const char* TRANSPORT_LOWER = "udp";
+    static constexpr const char* TRANSPORT_UPPER = "UDP";
 
     static constexpr uint32_t SOCKET_RX_TIMEOUT_MSEC = 200;
     static constexpr uint16_t LOCAL_RTP_PORT = 7078;
     static constexpr const char* TAG = "SipClient";
 };
 
-
-
-
 #ifdef USE_SML
 namespace sml = boost::sml;
 
-struct ev_start {};
-struct ev_2 {};
-struct ev_3 {};
+struct ev_start
+{
+};
+struct ev_2
+{
+};
+struct ev_3
+{
+};
 
 template <class SipClientT>
-struct sip_states {
-    auto operator()() const noexcept {
+struct sip_states
+{
+    auto operator()() const noexcept
+    {
         using namespace sml;
 
         const auto idle = state<class idle>;
 
-        const auto action = [](SipClientT& sip, const auto& event) {  /// event is deduced, order is not important
-            (void) event;
+        const auto action = [](SipClientT& sip, const auto& event) { /// event is deduced, order is not important
+            (void)event;
             sip.test();
         };
 
         return make_transition_table(
-                *idle + event<ev_start> = "s1"_s
-                , "s1"_s + sml::on_entry<_> / [] { ESP_LOGV("SIP SM", "s1 on entry"); }
-        , "s1"_s + sml::on_exit<_> / [] { ESP_LOGV("SIP SM", "s1 on exit"); }
-        , "s1"_s + event<ev_2> / action = state<class s2>
-        , state<class s2> + event<ev_3> = X
-        );
+            *idle + event<ev_start> = "s1"_s, "s1"_s + sml::on_entry<_> / [] { ESP_LOGV("SIP SM", "s1 on entry"); }, "s1"_s + sml::on_exit<_> / [] { ESP_LOGV("SIP SM", "s1 on exit"); }, "s1"_s + event<ev_2> / action = state<class s2>, state<class s2> + event<ev_3> = X);
     }
 };
 #endif //USE_SML
-
 
 template <class SocketT, class Md5T>
 class SipClient
 {
 public:
     SipClient(const std::string& user, const std::string& pwd, const std::string& server_ip, const std::string& server_port, const std::string& my_ip)
-    : m_sip{user, pwd, server_ip, server_port, my_ip}
+        : m_sip
+    {
+        user, pwd, server_ip, server_port, my_ip
+    }
 #ifdef USE_SML
-    , m_sm{m_sip}
+    , m_sm
+    {
+        m_sip
+    }
 #endif
-    {}
+    {
+    }
 
     bool init()
     {
@@ -856,7 +864,7 @@ public:
         m_sip.set_credentials(user, password);
     }
 
-    void set_event_handler(std::function<void(const SipClientEvent &)> handler)
+    void set_event_handler(std::function<void(const SipClientEvent&)> handler)
     {
         m_sip.set_event_handler(handler);
     }
@@ -880,11 +888,16 @@ public:
     void run()
     {
 #ifdef USE_SML
-        m_sm.process_event(ev_start{});
+        m_sm.process_event(ev_start {});
         //assert(sm.is(sml::X));
 #endif
 
         m_sip.run();
+    }
+
+    void deinit()
+    {
+        m_sip.deinit();
     }
 
 private:
@@ -893,5 +906,4 @@ private:
 #ifdef USE_SML
     sml::sm<sip_states<SipClientInt<SocketT, Md5T>>> m_sm;
 #endif
-
 };

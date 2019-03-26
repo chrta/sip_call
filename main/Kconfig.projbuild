@@ -20,8 +20,10 @@ choice POWER_SAVE_MODE
 
 config POWER_SAVE_NONE
     bool "none"
-config POWER_SAVE_MODEM
-    bool "modem"
+config POWER_SAVE_MODEM_MIN
+    bool "Modem-sleep minimum power save mode"
+config POWER_SAVE_MODEM_MAX
+    bool "Modem-sleep maximum power save mode"
 endchoice
 
 config BELL_INPUT_GPIO
