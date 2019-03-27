@@ -212,11 +212,11 @@ public:
         ssize_t len = recv(m_socket, m_rx_buffer.data(), m_rx_buffer.size(), 0);
         if (len <= 0)
         {
-            ESP_LOGD(TAG, "Received no data: %d, errno=%d", len, errno);
+            ESP_LOGV(TAG, "Received no data: %d, errno=%d", len, errno);
             return "";
         }
         m_rx_buffer[len] = '\0';
-        ESP_LOGD(TAG, "Received %d byte", len);
+        ESP_LOGV(TAG, "Received %d byte", len);
         ESP_LOGV(TAG, "Received following data: %s", m_rx_buffer.data());
 
         return std::string(m_rx_buffer.data(), len);
@@ -230,7 +230,7 @@ public:
 
     bool send_buffered_data()
     {
-        ESP_LOGD(TAG, "Sending %d byte", m_tx_buffer.size());
+        ESP_LOGV(TAG, "Sending %d byte", m_tx_buffer.size());
         ESP_LOGV(TAG, "Sending following data: %s", m_tx_buffer.data());
         ssize_t result = sendto(m_socket, m_tx_buffer.data(), m_tx_buffer.size(), 0, (struct sockaddr *)&m_dest_addr, sizeof(m_dest_addr));
         if (result < 0)
