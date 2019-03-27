@@ -22,8 +22,8 @@
 class SipPacket
 {
 public:
-
-    enum class Status {
+    enum class Status
+    {
         TRYING_100,
         SESSION_PROGRESS_183,
         OK_200,
@@ -36,7 +36,8 @@ public:
         UNKNOWN,
     };
 
-    enum class Method {
+    enum class Method
+    {
         NOTIFY,
         BYE,
         INFO,
@@ -44,21 +45,21 @@ public:
         UNKNOWN
     };
 
-    enum class ContentType {
-	    APPLICATION_DTMF_RELAY,
-	    UNKNOWN
+    enum class ContentType
+    {
+        APPLICATION_DTMF_RELAY,
+        UNKNOWN
     };
 
-
     SipPacket(const char* input_buffer, size_t input_buffer_length)
-    : m_buffer(input_buffer)
-    , m_buffer_length(input_buffer_length)
-    , m_status(Status::UNKNOWN)
-    , m_method(Method::UNKNOWN)
-    , m_content_type(ContentType::UNKNOWN)
-    , m_content_length(0)
-    , m_realm()
-    , m_nonce()
+        : m_buffer(input_buffer)
+        , m_buffer_length(input_buffer_length)
+        , m_status(Status::UNKNOWN)
+        , m_method(Method::UNKNOWN)
+        , m_content_type(ContentType::UNKNOWN)
+        , m_content_length(0)
+        , m_realm()
+        , m_nonce()
     {
     }
 
@@ -90,7 +91,7 @@ public:
 
     uint32_t get_content_length() const
     {
-	return m_content_length;
+        return m_content_length;
     }
 
     std::string get_nonce() const
@@ -154,7 +155,6 @@ public:
     }
 
 private:
-
     bool parse_header()
     {
         const char* start_position = m_buffer;
@@ -169,7 +169,7 @@ private:
         m_to = "";
         m_from = "";
         m_via = "";
-	m_p_called_party_id = "";
+        m_p_called_party_id = "";
         m_dtmf_signal = ' ';
         m_dtmf_duration = 0;
         m_body = nullptr;
@@ -213,7 +213,7 @@ private:
                 m_status = convert_status(code);
             }
             else if ((strncmp(WWW_AUTHENTICATE, start_position, strlen(WWW_AUTHENTICATE)) == 0)
-                    || (strncmp(PROXY_AUTHENTICATE, start_position, strlen(PROXY_AUTHENTICATE)) == 0))
+                || (strncmp(PROXY_AUTHENTICATE, start_position, strlen(PROXY_AUTHENTICATE)) == 0))
             {
                 ESP_LOGV(TAG, "Detect authenticate line");
                 //read realm and nonce from authentication line
@@ -266,7 +266,7 @@ private:
             {
                 m_call_id = std::string(start_position + strlen(CALL_ID));
             }
-	    else if (strstr(start_position, P_CALLED_PARTY_ID) == start_position)
+            else if (strstr(start_position, P_CALLED_PARTY_ID) == start_position)
             {
                 m_p_called_party_id = std::string(start_position + strlen(P_CALLED_PARTY_ID));
             }
@@ -296,7 +296,7 @@ private:
             //go to next line
             start_position = next_start_position;
             end_position = strstr(start_position, LINE_ENDING);
-        } while(end_position);
+        } while (end_position);
 
         //no line only containing the line ending found :(
         return false;
@@ -353,7 +353,7 @@ private:
             //go to next line
             start_position = next_start_position;
             end_position = strstr(start_position, LINE_ENDING);
-        } while(end_position);
+        } while (end_position);
 
         return true;
     }
@@ -389,15 +389,24 @@ private:
     {
         switch (code)
         {
-        case 200: return Status::OK_200;
-        case 401: return Status::UNAUTHORIZED_401;
-        case 100: return Status::TRYING_100;
-        case 183: return Status::SESSION_PROGRESS_183;
-        case 500: return Status::SERVER_ERROR_500;
-        case 486: return Status::BUSY_HERE_486;
-        case 487: return Status::REQUEST_CANCELLED_487;
-        case 407: return Status::PROXY_AUTH_REQ_407;
-        case 603: return Status::DECLINE_603;
+        case 200:
+            return Status::OK_200;
+        case 401:
+            return Status::UNAUTHORIZED_401;
+        case 100:
+            return Status::TRYING_100;
+        case 183:
+            return Status::SESSION_PROGRESS_183;
+        case 500:
+            return Status::SERVER_ERROR_500;
+        case 486:
+            return Status::BUSY_HERE_486;
+        case 487:
+            return Status::REQUEST_CANCELLED_487;
+        case 407:
+            return Status::PROXY_AUTH_REQ_407;
+        case 603:
+            return Status::DECLINE_603;
         }
         return Status::UNKNOWN;
     }
@@ -425,10 +434,10 @@ private:
 
     ContentType convert_content_type(const char* input) const
     {
-	if (strstr(input, APPLICATION_DTMF_RELAY) == input)
-	{
-	    return ContentType::APPLICATION_DTMF_RELAY;
-	}
+        if (strstr(input, APPLICATION_DTMF_RELAY) == input)
+        {
+            return ContentType::APPLICATION_DTMF_RELAY;
+        }
         return ContentType::UNKNOWN;
     }
 
@@ -456,7 +465,6 @@ private:
 
     static constexpr const char* LINE_ENDING = "\r\n";
     static constexpr size_t LINE_ENDING_LEN = 2;
-
 
     static constexpr const char* TAG = "SipPacket";
     static constexpr const char* SIP_2_0_SPACE = "SIP/2.0 ";

@@ -361,8 +361,8 @@ private:
             }
             break;
         case SipState::REGISTERED:
-		//Do not accept calls to e.g. **9 on fritzbox
-	    if ((packet.get_method() == SipPacket::Method::INVITE) && packet.get_p_called_party_id().empty())
+            //Do not accept calls to e.g. **9 on fritzbox
+            if ((packet.get_method() == SipPacket::Method::INVITE) && packet.get_p_called_party_id().empty())
             {
                 //received an invite, answered it already with ok, so new call is established, because someone called us
                 m_state = SipState::CALL_START;
