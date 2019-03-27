@@ -319,7 +319,7 @@ private:
             m_realm = packet.get_realm();
             m_nonce = packet.get_nonce();
         }
-        else if ((reply == SipPacket::Status::UNKNOWN) && ((packet.get_method() == SipPacket::Method::NOTIFY) || (packet.get_method() == SipPacket::Method::BYE) || (packet.get_method() == SipPacket::Method::INFO) || (packet.get_method() == SipPacket::Method::INVITE)))
+        else if ((reply == SipPacket::Status::UNKNOWN) && ((packet.get_method() == SipPacket::Method::NOTIFY) || (packet.get_method() == SipPacket::Method::BYE) || (packet.get_method() == SipPacket::Method::INFO) || ((packet.get_method() == SipPacket::Method::INVITE) && packet.get_p_called_party_id().empty())))
         {
             send_sip_ok(packet);
         }
@@ -361,7 +361,8 @@ private:
             }
             break;
         case SipState::REGISTERED:
-            if (packet.get_method() == SipPacket::Method::INVITE)
+		//Do not accept calls to e.g. **9 on fritzbox
+	    if ((packet.get_method() == SipPacket::Method::INVITE) && packet.get_p_called_party_id().empty())
             {
                 //received an invite, answered it already with ok, so new call is established, because someone called us
                 m_state = SipState::CALL_START;

@@ -138,6 +138,11 @@ public:
         return m_via;
     }
 
+    std::string get_p_called_party_id() const
+    {
+        return m_p_called_party_id;
+    }
+
     char get_dtmf_signal() const
     {
         return m_dtmf_signal;
@@ -164,6 +169,7 @@ private:
         m_to = "";
         m_from = "";
         m_via = "";
+	m_p_called_party_id = "";
         m_dtmf_signal = ' ';
         m_dtmf_duration = 0;
         m_body = nullptr;
@@ -259,6 +265,10 @@ private:
             else if (strstr(start_position, CALL_ID) == start_position)
             {
                 m_call_id = std::string(start_position + strlen(CALL_ID));
+            }
+	    else if (strstr(start_position, P_CALLED_PARTY_ID) == start_position)
+            {
+                m_p_called_party_id = std::string(start_position + strlen(P_CALLED_PARTY_ID));
             }
             else if (strstr(start_position, CONTENT_TYPE) == start_position)
             {
@@ -439,6 +449,7 @@ private:
     std::string m_to;
     std::string m_from;
     std::string m_via;
+    std::string m_p_called_party_id;
     char m_dtmf_signal;
     uint16_t m_dtmf_duration;
     const char* m_body;
@@ -455,6 +466,7 @@ private:
     static constexpr const char* TO = "To: ";
     static constexpr const char* FROM = "From: ";
     static constexpr const char* VIA = "Via: ";
+    static constexpr const char* P_CALLED_PARTY_ID = "P-Called-Party-ID: ";
     static constexpr const char* C_SEQ = "CSeq: ";
     static constexpr const char* CALL_ID = "Call-ID: ";
     static constexpr const char* CONTENT_TYPE = "Content-Type: ";
