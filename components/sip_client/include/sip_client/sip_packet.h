@@ -153,6 +153,14 @@ public:
     {
         return m_dtmf_duration;
     }
+    std::string get_media() const
+    {
+        return m_media;
+    }
+    std::string get_cip() const
+    {
+        return m_cip;
+    }
 
 private:
     bool parse_header()
@@ -172,6 +180,8 @@ private:
         m_p_called_party_id = "";
         m_dtmf_signal = ' ';
         m_dtmf_duration = 0;
+        m_cip = "";
+        m_media = "";
         m_body = nullptr;
 
         if (end_position == nullptr)
@@ -349,6 +359,14 @@ private:
                     m_dtmf_duration = duration;
                 }
             }
+            else if (strstr(start_position, MEDIA) == start_position)
+            {
+                m_media = std::string(start_position + strlen(MEDIA));
+            }
+            else if (strstr(start_position, CIP) == start_position)
+            {
+                m_cip = std::string(start_position + strlen(CIP));
+            }
 
             //go to next line
             start_position = next_start_position;
@@ -461,6 +479,9 @@ private:
     std::string m_p_called_party_id;
     char m_dtmf_signal;
     uint16_t m_dtmf_duration;
+    std::string m_media;
+    std::string m_cip;
+
     char* m_body;
 
     static constexpr const char* LINE_ENDING = "\r\n";
@@ -488,4 +509,6 @@ private:
     static constexpr const char* APPLICATION_DTMF_RELAY = "application/dtmf-relay";
     static constexpr const char* SIGNAL = "Signal=";
     static constexpr const char* DURATION = "Duration=";
+    static constexpr const char* MEDIA = "m=";
+    static constexpr const char* CIP = "c=IN IP4 ";
 };
