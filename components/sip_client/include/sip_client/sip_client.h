@@ -28,22 +28,6 @@
 #include <functional>
 #include <string>
 
-static void rtp_task(void* pvParameters)
-{
-    LwipUdpClient* socket = (LwipUdpClient*)pvParameters;
-    for (;;)
-    {
-        if (!socket->is_initialized())
-        {
-            vTaskDelay(2000 / portTICK_RATE_MS);
-            continue;
-        }
-
-        std::string data = socket->receive(5000);
-        ESP_LOGV("RTP", "Received %d byte", data.size());
-    }
-}
-
 struct SipClientEvent
 {
     enum class Event
@@ -71,9 +55,19 @@ template <class SocketT, class Md5T>
 class SipClientInt
 {
 public:
-    SipClientInt(const std::string& user, const std::string& pwd, const std::string& server_ip, const std::string& server_port, const std::string& my_ip)
-        : m_socket(server_ip, server_port, LOCAL_PORT)
-        , m_rtp_socket(server_ip, "7078", LOCAL_RTP_PORT)
+    SipClientInt(asio::io_context& io_context, const std::string& user, const std::string& pwd, const std::string& server_ip, const std::string& server_port, const std::string& my_ip)
+	    : m_socket(io_context, server_ip, server_port, LOCAL_PORT, [this](std::string data) {
+
+			    rx(data);
+			    tx();
+			    //TODO: rx must be called on a regular basis
+			    //TODO: rx must be called on a regular basis
+			    //TODO: or directly move to boost::sml
+			    
+		    })
+		, m_rtp_socket(io_context, server_ip, "7078", LOCAL_RTP_PORT, [this](std::string data) {
+				ESP_LOGV("RTP", "Received %d byte", data.size());
+			})
         , m_server_ip(server_ip)
         , m_user(user)
         , m_pwd(pwd)
@@ -91,7 +85,6 @@ public:
         , m_sdp_session_id(0)
         , m_command_event_group(xEventGroupCreate())
     {
-        xTaskCreate(&rtp_task, "rtp_task", 4096, &m_rtp_socket, 4, NULL);
     }
 
     ~SipClientInt()
@@ -102,6 +95,14 @@ public:
     {
         bool result_rtp = m_rtp_socket.init();
         bool result_sip = m_socket.init();
+
+	//TODO: remove this here, do it properly with boost::sml
+	if ( result_rtp && result_sip)
+	{
+		tx();
+	}
+
+
         return result_rtp && result_sip;
     }
 
@@ -164,12 +165,14 @@ public:
         }
     }
 
+#if 0    
     void run()
     {
         tx();
         rx();
     }
-
+#endif
+    
     void deinit()
     {
         m_socket.deinit();
@@ -258,7 +261,7 @@ private:
         }
     }
 
-    void rx()
+    void rx(std::string recv_string)
     {
         if (m_state == SipState::REGISTERED)
         {
@@ -271,7 +274,8 @@ private:
         }
         else if (m_state == SipState::ERROR)
         {
-            vTaskDelay(2000 / portTICK_RATE_MS);
+		//TODO: delay is evil for asio
+		//vTaskDelay(2000 / portTICK_RATE_MS);
             m_sip_sequence_number++;
             m_state = SipState::IDLE;
             log_state_transition(SipState::ERROR, m_state);
@@ -291,7 +295,7 @@ private:
         }
 
         //The timeout is a workaround to be able to end a CANCEL request during ring
-        std::string recv_string = m_socket.receive(SOCKET_RX_TIMEOUT_MSEC);
+        //std::string recv_string = m_socket.receive(SOCKET_RX_TIMEOUT_MSEC);
 
         if (recv_string.empty())
         {
@@ -817,7 +821,9 @@ struct sip_states
         };
 
         return make_transition_table(
-            *idle + event<ev_start> = "s1"_s, "s1"_s + sml::on_entry<_> / [] { ESP_LOGV("SIP SM", "s1 on entry"); }, "s1"_s + sml::on_exit<_> / [] { ESP_LOGV("SIP SM", "s1 on exit"); }, "s1"_s + event<ev_2> / action = state<class s2>, state<class s2> + event<ev_3> = X);
+            *idle + event<ev_start> = "s1"_s,
+	    "s1"_s + sml::on_entry<_> / [] { ESP_LOGV("SIP SM", "s1 on entry"); }, "s1"_s + sml::on_exit<_> / [] { ESP_LOGV("SIP SM", "s1 on exit"); },
+	    "s1"_s + event<ev_2> / action = state<class s2>, state<class s2> + event<ev_3> = X);
     }
 };
 #endif //USE_SML
@@ -826,10 +832,10 @@ template <class SocketT, class Md5T>
 class SipClient
 {
 public:
-    SipClient(const std::string& user, const std::string& pwd, const std::string& server_ip, const std::string& server_port, const std::string& my_ip)
+    SipClient(asio::io_context& io_context, const std::string& user, const std::string& pwd, const std::string& server_ip, const std::string& server_port, const std::string& my_ip)
         : m_sip
     {
-        user, pwd, server_ip, server_port, my_ip
+	    io_context, user, pwd, server_ip, server_port, my_ip
     }
 #ifdef USE_SML
     , m_sm
@@ -886,6 +892,7 @@ public:
         m_sip.request_cancel();
     }
 
+#if 0
     void run()
     {
 #ifdef USE_SML
@@ -895,7 +902,8 @@ public:
 
         m_sip.run();
     }
-
+#endif
+    
     void deinit()
     {
         m_sip.deinit();

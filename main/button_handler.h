@@ -73,12 +73,17 @@ public:
         gpioConfig.intr_type    = GPIO_INTR_POSEDGE;
         gpio_config(&gpioConfig);
 
-        gpio_install_isr_service(0);
-        gpio_isr_handler_add(GPIO_PIN, ButtonInputHandler::int_handler, (void*) this);
     }
 
     void run() {
         using namespace sml;
+
+	// This must not be in the contructor, since the cunstructor may be executed
+	// before initializing the internal gpio isr initialization function.
+	// In this case the following call would fail and crash afterwards.
+	ESP_ERROR_CHECK(gpio_install_isr_service(0));
+        ESP_ERROR_CHECK(gpio_isr_handler_add(GPIO_PIN, &ButtonInputHandler::int_handler, (void*) this));
+
         for (;;)
         {
             Event event;

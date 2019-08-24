@@ -17,8 +17,10 @@
 #pragma once
 
 #include <array>
+#include <functional>
 #include <string>
 #include <cstring>
+
 
 #include "lwip/err.h"
 #include "lwip/sockets.h"
@@ -31,6 +33,9 @@
 static constexpr const int RX_BUFFER_SIZE = 2048;
 static constexpr const int TX_BUFFER_SIZE = 2048;
 
+//Workaround for asio esp-idf issue
+//https://github.com/espressif/esp-idf/issues/3557
+char* if_indextoname(unsigned int , char* ) { return 0; }
 
 template<std::size_t SIZE>
 class Buffer
@@ -87,13 +92,14 @@ class LwipUdpClient
 {
 public:
 
-    LwipUdpClient(const std::string& server_ip, const std::string& server_port, uint16_t local_port)
-    : m_server_port(server_port)
+LwipUdpClient(asio::io_context& io_context, const std::string& server_ip, const std::string& server_port, uint16_t local_port, std::function<void(std::string)> on_received)
+    : m_io_context(io_context)
+    , m_server_port(server_port)
     , m_server_ip(server_ip)
     , m_local_port(local_port)
-    , m_socket(INVALID_SOCKET)
+    , m_socket{io_context}
+    , m_on_received{on_received}
     {
-        bzero(&m_dest_addr, sizeof(m_dest_addr));
     }
 
     ~LwipUdpClient()
@@ -115,111 +121,79 @@ public:
         {
             return;
         }
-        close(m_socket);
-        m_socket = INVALID_SOCKET;
+        m_socket.close();
     }
 
     bool init()
     {
-        if (m_socket >= 0)
+	asio::error_code ec;
+		
+	if (m_socket.is_open())
         {
             ESP_LOGW(TAG, "Socket already initialized");
             return false;
         }
-        struct addrinfo hints;
-        bzero(&hints, sizeof(hints));
-        hints.ai_family = AF_INET;
-        hints.ai_socktype = SOCK_DGRAM;
 
-        struct addrinfo *res;
-        struct in_addr *addr;
         ESP_LOGI(TAG, "Doing DNS lookup for host=%s port=%s", m_server_ip.c_str(), m_server_port.c_str());
-
-        int err = getaddrinfo(m_server_ip.c_str(), m_server_port.c_str(), &hints, &res);
-
-        if(err != 0 || res == NULL)
+	asio::ip::udp::resolver resolver(m_io_context);
+	asio::ip::udp::resolver::results_type endpoints = resolver.resolve(asio::ip::udp::v4(), m_server_ip, m_server_port, ec);
+	
+        if (endpoints.empty() || ec)
         {
-            ESP_LOGE(TAG, "DNS lookup failed err=%d res=%p", err, res);
+		ESP_LOGE(TAG, "DNS lookup failed: %s", ec.message().c_str());
             return false;
         }
 
-        /* Code to print the resolved IP.
-         * Note: inet_ntoa is non-reentrant, look at ipaddr_ntoa_r for "real" code */
-        addr = &((struct sockaddr_in *)res->ai_addr)->sin_addr;
-        ESP_LOGI(TAG, "DNS lookup succeeded. IP=%s", inet_ntoa(*addr));
+	m_destination_endpoint = *endpoints.begin();
+		
+        ESP_LOGI(TAG, "DNS lookup succeeded. IP=%s", m_destination_endpoint.address().to_string().c_str());
 
-        m_socket = socket(res->ai_family, res->ai_socktype, 0);
-        if(m_socket < 0) {
-            ESP_LOGE(TAG, "... Failed to allocate socket.");
-            freeaddrinfo(res);
+	m_socket.open(asio::ip::udp::v4(), ec);
+
+        if (ec) {
+		ESP_LOGE(TAG, "... Failed to open socket: %s\r\n", ec.message().c_str());
             return false;
         }
-        ESP_LOGI(TAG, "... allocated socket %d\r\n", m_socket);
+        ESP_LOGI(TAG, "... opened socket %d\r\n", m_socket.native_handle());
 
-        /*Destination*/
-        bzero(&m_dest_addr, sizeof(m_dest_addr));
-        m_dest_addr.sin_family = AF_INET;
-        m_dest_addr.sin_len = sizeof(m_dest_addr);
-        m_dest_addr.sin_addr.s_addr = ((struct sockaddr_in *)res->ai_addr)->sin_addr.s_addr;
-        m_dest_addr.sin_port = ((struct sockaddr_in *)res->ai_addr)->sin_port;
-
-        freeaddrinfo(res);
-
-        /*Source*/
-        struct sockaddr_in local_addr;
-        bzero(&local_addr, sizeof(local_addr));
-        local_addr.sin_family = AF_INET;
-        local_addr.sin_len = sizeof(local_addr);
-        local_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-        local_addr.sin_port = htons(m_local_port);
-
-        if (bind(m_socket, (struct sockaddr *)&local_addr, sizeof(local_addr)) < 0)
+	m_socket.bind(asio::ip::udp::endpoint(asio::ip::udp::v4(), m_local_port), ec);
+	
+        if (ec)
         {
-            ESP_LOGE(TAG, "... Failed to bind");
-            close(m_socket);
-            m_socket = INVALID_SOCKET;
+	    ESP_LOGE(TAG, "... Failed to bind: %s", ec.message().c_str());
+            m_socket.close();
             return false;
         }
 
+	do_receive();
         return true;
     }
 
     bool is_initialized() const
     {
-        return m_socket >= 0;
+	return m_socket.is_open();
     }
 
 
-    std::string receive(uint32_t timeout_msec)
+    void do_receive()
     {
-        FD_ZERO(&m_rx_fds);
-        FD_SET(m_socket, &m_rx_fds);
-
-        m_rx_timeval.tv_sec = timeout_msec / 1000;
-        m_rx_timeval.tv_usec = (timeout_msec - (m_rx_timeval.tv_sec * 1000))* 1000;
-
-        int readable = select(m_socket + 1, &m_rx_fds, nullptr, nullptr, &m_rx_timeval);
-
-        if (readable < 0)
-        {
-            ESP_LOGW(TAG, "Select error: %d, errno=%d", readable, errno);
-        }
-        if (readable <= 0)
-        {
-            return "";
-        }
-
-        ssize_t len = recv(m_socket, m_rx_buffer.data(), m_rx_buffer.size(), 0);
-        if (len <= 0)
-        {
-            ESP_LOGV(TAG, "Received no data: %d, errno=%d", len, errno);
-            return "";
-        }
-        m_rx_buffer[len] = '\0';
-        ESP_LOGV(TAG, "Received %d byte", len);
-        ESP_LOGV(TAG, "Received following data: %s", m_rx_buffer.data());
-
-        return std::string(m_rx_buffer.data(), len);
+	    asio::ip::udp::endpoint sender_endpoint;
+	    m_socket.async_receive_from(
+		    asio::buffer(m_rx_buffer.data(), m_rx_buffer.size()), sender_endpoint,
+		    [this](std::error_code ec, std::size_t bytes_recvd)
+		    {
+			    if (!ec && bytes_recvd > 0)
+			    {
+				    m_rx_buffer[bytes_recvd] = '\0';
+				    ESP_LOGV(TAG, "Received %d byte", bytes_recvd);
+				    ESP_LOGV(TAG, "Received following data: %s", m_rx_buffer.data());
+				    if (m_on_received)
+				    {
+					    m_on_received(std::string(m_rx_buffer.data(), bytes_recvd));
+				    }
+			    }
+			    do_receive();
+		    });	    
     }
 
     TxBufferT& get_new_tx_buf()
@@ -232,24 +206,32 @@ public:
     {
         ESP_LOGV(TAG, "Sending %d byte", m_tx_buffer.size());
         ESP_LOGV(TAG, "Sending following data: %s", m_tx_buffer.data());
-        ssize_t result = sendto(m_socket, m_tx_buffer.data(), m_tx_buffer.size(), 0, (struct sockaddr *)&m_dest_addr, sizeof(m_dest_addr));
-        if (result < 0)
+	asio::socket_base::message_flags flags = 0;
+	asio::error_code ec;
+	
+	size_t result = m_socket.send_to(
+		asio::buffer(m_tx_buffer.data(), m_tx_buffer.size()), m_destination_endpoint, flags, ec);
+
+	if (ec || (result <= 0))
         {
-            ESP_LOGD(TAG, "Failed to send data %d, errno=%d", result, errno);
+            ESP_LOGD(TAG, "Failed to send data %d, error=%s", result, ec.message().c_str());
         }
+	
         return result == m_tx_buffer.size();
     }
 
 
 private:
+    asio::io_context& m_io_context;
     const std::string m_server_port;
     std::string m_server_ip;
     const uint16_t m_local_port;
 
     TxBufferT m_tx_buffer;
     std::array<char, RX_BUFFER_SIZE> m_rx_buffer;
-    int m_socket;
-    sockaddr_in m_dest_addr;
+    asio::ip::udp::socket m_socket;
+    std::function<void(std::string)> m_on_received;
+    asio::ip::udp::endpoint m_destination_endpoint;
 
     fd_set m_rx_fds;
     struct timeval m_rx_timeval;
