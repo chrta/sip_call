@@ -56,12 +56,7 @@ const int CONNECTED_BIT = BIT0;
 
 static const char* TAG = "main";
 
-// Execute io_context.rin() only from one thread
-asio::io_context io_context{1};
-
 using SipClientT = SipClient<LwipUdpClient, MbedtlsMd5>;
-
-SipClientT client { io_context, CONFIG_SIP_USER, CONFIG_SIP_PASSWORD, CONFIG_SIP_SERVER_IP, CONFIG_SIP_SERVER_PORT, CONFIG_LOCAL_IP };
 
 static std::string ip_to_string(const ip4_addr_t* ip)
 {
@@ -85,6 +80,7 @@ static std::string get_local_ip_address(const system_event_sta_got_ip_t* got_ip)
 
 static esp_err_t event_handler(void* ctx, system_event_t* event)
 {
+    SipClientT *client = static_cast<SipClientT *>(ctx);
     switch (event->event_id)
     {
     case SYSTEM_EVENT_STA_START:
@@ -94,12 +90,12 @@ static esp_err_t event_handler(void* ctx, system_event_t* event)
     {
         system_event_sta_got_ip_t* got_ip = &event->event_info.got_ip;
         //client.set_server_ip(get_gw_ip_address(got_ip));
-        client.set_my_ip(get_local_ip_address(got_ip));
+        client->set_my_ip(get_local_ip_address(got_ip));
         xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
     }
     break;
     case SYSTEM_EVENT_STA_DISCONNECTED:
-        client.deinit();
+        client->deinit();
         /* This is a workaround as ESP32 WiFi libs don't currently auto-reassociate. */
         esp_wifi_connect();
         xEventGroupClearBits(wifi_event_group, CONNECTED_BIT);
@@ -110,11 +106,11 @@ static esp_err_t event_handler(void* ctx, system_event_t* event)
     return ESP_OK;
 }
 
-static void initialize_wifi(void)
+static void initialize_wifi(void* ctx)
 {
     tcpip_adapter_init();
     wifi_event_group = xEventGroupCreate();
-    ESP_ERROR_CHECK(esp_event_loop_init(event_handler, NULL));
+    ESP_ERROR_CHECK(esp_event_loop_init(event_handler, ctx));
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
     ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
@@ -133,10 +129,19 @@ static void initialize_wifi(void)
     esp_wifi_set_ps(DEFAULT_PS_MODE);
 }
 
-ButtonInputHandler<SipClientT, BELL_GPIO_PIN, RING_DURATION_TIMEOUT_MSEC>  button_input_handler(client);
+struct handlers_t {
+	SipClientT &client;
+	ButtonInputHandler<SipClientT, BELL_GPIO_PIN, RING_DURATION_TIMEOUT_MSEC>& button_input_handler;
+	asio::io_context &io_context;
+};
+
 
 static void sip_task(void* pvParameters)
 {
+    handlers_t* handlers = static_cast<handlers_t *>(pvParameters);
+    SipClientT& client = handlers->client;
+    ButtonInputHandler<SipClientT, BELL_GPIO_PIN, RING_DURATION_TIMEOUT_MSEC>& button_input_handler = handlers->button_input_handler;
+
     for (;;)
     {
         // Wait for wifi connection
@@ -152,7 +157,7 @@ static void sip_task(void* pvParameters)
                 vTaskDelay(2000 / portTICK_RATE_MS);
                 continue;
             }
-            client.set_event_handler([](const SipClientEvent& event) {
+            client.set_event_handler([&button_input_handler](const SipClientEvent& event) {
                 switch (event.event)
                 {
                 case SipClientEvent::Event::CALL_START:
@@ -174,18 +179,28 @@ static void sip_task(void* pvParameters)
         }
 
         //client.run();
-	io_context.run();
+	handlers->io_context.run();
 
     }
 }
 
 extern "C" void app_main(void)
 {
+    // Execute io_context.run() only from one thread
+    asio::io_context io_context{1};
+
+
+    SipClientT client { io_context, CONFIG_SIP_USER, CONFIG_SIP_PASSWORD, CONFIG_SIP_SERVER_IP, CONFIG_SIP_SERVER_PORT, CONFIG_LOCAL_IP };
+    ButtonInputHandler<SipClientT, BELL_GPIO_PIN, RING_DURATION_TIMEOUT_MSEC>  button_input_handler(client);
+
+    handlers_t handlers{client, button_input_handler, io_context};
     nvs_flash_init();
-    initialize_wifi();
+    initialize_wifi(&client);
 
     std::srand(esp_random());
-    xTaskCreate(&sip_task, "sip_task", 4096, NULL, 5, NULL);
+    // without pinning this to core 0, funny stuff (crashes) happen,
+    // because some c++ objects are not fully initialized
+    xTaskCreatePinnedToCore(&sip_task, "sip_task", 4096, &handlers, 5, NULL, 0);
 
     //blocks forever
     button_input_handler.run();
