@@ -88,6 +88,18 @@ private:
 
 using TxBufferT = Buffer<TX_BUFFER_SIZE>;
 
+
+namespace {
+class TcpIpAdapterInitializer
+{
+public:
+	TcpIpAdapterInitializer() {
+		tcpip_adapter_init();
+	}
+};
+
+}
+
 class LwipUdpClient
 {
 public:
@@ -222,6 +234,7 @@ LwipUdpClient(asio::io_context& io_context, const std::string& server_ip, const 
 
 
 private:
+    TcpIpAdapterInitializer m_initializer;
     asio::io_context& m_io_context;
     const std::string m_server_port;
     std::string m_server_ip;
