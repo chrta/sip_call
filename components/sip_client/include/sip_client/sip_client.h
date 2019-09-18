@@ -18,15 +18,13 @@
 
 #include "sip_packet.h"
 
-#define USE_SML
-
-#ifdef USE_SML
 #include "boost/sml.hpp"
-#endif
 
 #include <cstdlib>
 #include <functional>
 #include <string>
+
+namespace sml = boost::sml;
 
 struct SipClientEvent
 {
@@ -51,11 +49,11 @@ struct SipClientEvent
     CancelReason cancel_reason = CancelReason::UNKNOWN;
 };
 
-template <class SocketT, class Md5T>
+template <class SocketT, class Md5T, template<typename> typename SmT>
 class SipClientInt
 {
 public:
-    SipClientInt(asio::io_context& io_context, const std::string& user, const std::string& pwd, const std::string& server_ip, const std::string& server_port, const std::string& my_ip)
+SipClientInt(asio::io_context& io_context, const std::string& user, const std::string& pwd, const std::string& server_ip, const std::string& server_port, const std::string& my_ip, sml::sm<SmT<SipClientInt<SocketT, Md5T, SmT>>>& sm)
 	    : m_socket(io_context, server_ip, server_port, LOCAL_PORT, [this](std::string data) {
 
 			    rx(data);
@@ -84,6 +82,7 @@ public:
         , m_caller_display(m_user)
         , m_sdp_session_id(0)
         , m_command_event_group(xEventGroupCreate())
+		, m_sm(sm)
     {
     }
 
@@ -781,6 +780,8 @@ private:
 
     /* FreeRTOS event group to signal commands from other tasks */
     EventGroupHandle_t m_command_event_group;
+
+    sml::sm<SmT<SipClientInt<SocketT, Md5T, SmT>>>& m_sm;
     static constexpr uint8_t COMMAND_DIAL_BIT = BIT0;
     static constexpr uint8_t COMMAND_CANCEL_BIT = BIT1;
 
@@ -792,9 +793,6 @@ private:
     static constexpr uint16_t LOCAL_RTP_PORT = 7078;
     static constexpr const char* TAG = "SipClient";
 };
-
-#ifdef USE_SML
-namespace sml = boost::sml;
 
 struct ev_start
 {
@@ -826,7 +824,6 @@ struct sip_states
 	    "s1"_s + event<ev_2> / action = state<class s2>, state<class s2> + event<ev_3> = X);
     }
 };
-#endif //USE_SML
 
 template <class SocketT, class Md5T>
 class SipClient
@@ -835,14 +832,12 @@ public:
     SipClient(asio::io_context& io_context, const std::string& user, const std::string& pwd, const std::string& server_ip, const std::string& server_port, const std::string& my_ip)
         : m_sip
     {
-	    io_context, user, pwd, server_ip, server_port, my_ip
+	    io_context, user, pwd, server_ip, server_port, my_ip, m_sm
     }
-#ifdef USE_SML
     , m_sm
     {
         m_sip
     }
-#endif
     {
     }
 
@@ -895,10 +890,8 @@ public:
 #if 0
     void run()
     {
-#ifdef USE_SML
         m_sm.process_event(ev_start {});
         //assert(sm.is(sml::X));
-#endif
 
         m_sip.run();
     }
@@ -910,9 +903,9 @@ public:
     }
 
 private:
-    SipClientInt<SocketT, Md5T> m_sip;
 
-#ifdef USE_SML
-    sml::sm<sip_states<SipClientInt<SocketT, Md5T>>> m_sm;
-#endif
+    using SipClientInternal = SipClientInt<SocketT, Md5T, sip_states>;
+    SipClientInternal m_sip;
+
+    sml::sm<sip_states<SipClientInternal>> m_sm;
 };
