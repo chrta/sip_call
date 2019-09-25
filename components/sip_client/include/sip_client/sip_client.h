@@ -78,6 +78,9 @@ struct ev_500_internal_server_error
 {
 };
 
+struct ev_reply_timeout
+{
+};
 
 struct SipClientEvent
 {
@@ -112,7 +115,7 @@ SipClientInt(asio::io_context& io_context, const std::string& user, const std::s
 			    rx(data);
 		    })
 		, m_rtp_socket(io_context, server_ip, "7078", LOCAL_RTP_PORT, [this](std::string data) {
-				ESP_LOGV("RTP", "Received %d byte", data.size());
+				//ESP_LOGV("RTP", "Received %d byte", data.size());
 			})
         , m_server_ip(server_ip)
         , m_user(user)
@@ -129,9 +132,10 @@ SipClientInt(asio::io_context& io_context, const std::string& user, const std::s
         , m_branch(std::rand() % 2147483647)
         , m_caller_display(m_user)
         , m_sdp_session_id(0)
-        , m_command_event_group(xEventGroupCreate())
 	, m_sm(sm)
 	, m_io_context(io_context)
+	, m_timer(io_context)
+	, m_command_timeout_timer(io_context)
     {
     }
 
@@ -193,7 +197,6 @@ SipClientInt(asio::io_context& io_context, const std::string& user, const std::s
      */
     void request_ring(const std::string& local_number, const std::string& caller_display)
     {
-            ESP_LOGI(TAG, "Request to call %s...", local_number.c_str());
 	    asio::dispatch(m_io_context, [this, local_number, caller_display](){
 			    ESP_LOGI(TAG, "Request to call %s...", local_number.c_str());
 			    this->m_sm.process_event(ev_request_call {local_number, caller_display});
@@ -202,7 +205,6 @@ SipClientInt(asio::io_context& io_context, const std::string& user, const std::s
 
     void request_cancel()
     {
-            ESP_LOGI(TAG, "Request to CANCEL call");
 	    asio::dispatch(m_io_context, [this](){
 			    ESP_LOGI(TAG, "Request to CANCEL call");
 			    this->m_sm.process_event(ev_cancel_call {});
@@ -248,8 +250,6 @@ SipClientInt(asio::io_context& io_context, const std::string& user, const std::s
     void send_invite(const ev_401_unauthorized& event)
     {
 	    //first ack the prev sip 401/407 packet
-
-	    //expected ack after 401 after we sent invite
 	    send_sip_ack();
 
 	    m_sdp_session_id = std::rand();
@@ -358,11 +358,15 @@ SipClientInt(asio::io_context& io_context, const std::string& user, const std::s
 	    m_sip_sequence_number++;
 
 	    // wait for timeout and restart again
-	    asio::steady_timer t(m_io_context, asio::chrono::seconds(5));
-	    t.async_wait([this](const asio::error_code&)
-			 {
-				 this->m_sm.process_event(ev_start {});
-			 });
+	    m_timer.expires_after(asio::chrono::seconds(5));
+	   
+	    m_timer.async_wait([this](const asio::error_code& ec)
+			       {
+				       if (!ec)
+				       {
+					       this->m_sm.process_event(ev_start {});
+				       }
+			       });
     }
 
     
@@ -370,17 +374,6 @@ private:
     
     void rx(std::string recv_string)
     {
-#if 0
-        if (m_state == SipState::ERROR)
-        {
-		//TODO: delay is evil for asio
-		//vTaskDelay(2000 / portTICK_RATE_MS);
-            m_sip_sequence_number++;
-            m_state = SipState::IDLE;
-            log_state_transition(SipState::ERROR, m_state);
-            return;
-        }
-#endif
         if (recv_string.empty())
         {
             return;
@@ -393,6 +386,8 @@ private:
             return;
         }
 
+	m_command_timeout_timer.cancel();
+	
         SipPacket::Status reply = packet.get_status();
         ESP_LOGI(TAG, "Parsing the packet ok, reply code=%d", (int)packet.get_status());
 
@@ -489,29 +484,6 @@ private:
 		ESP_LOGV(TAG, "Drop invite from : %s", packet.get_from().c_str());
 		send_sip_decline(packet);
 	}
-
-#if 0
-        SipState old_state = m_state;
-        switch (m_state)
-        {
-        case SipState::CANCELLED:
-            if (reply == SipPacket::Status::OK_200)
-            {
-                m_sip_sequence_number++;
-                m_state = SipState::REGISTERED;
-            }
-            break;
-        case SipState::ERROR:
-            m_sip_sequence_number++;
-            m_state = SipState::IDLE;
-            break;
-        }
-
-        if (old_state != m_state)
-        {
-            log_state_transition(old_state, m_state);
-        }
-#endif
     }
 
     void send_sip_register()
@@ -533,6 +505,14 @@ private:
         tx_buffer << "\r\n";
 
         m_socket.send_buffered_data();
+	m_command_timeout_timer.expires_after(asio::chrono::seconds(5));
+	m_command_timeout_timer.async_wait([this](const asio::error_code& ec)
+			       {
+				       if (!ec)
+				       {
+					       this->m_sm.process_event(ev_reply_timeout {});
+				       }
+			       });
     }
 
     void send_sip_invite()
@@ -598,42 +578,32 @@ private:
     void send_sip_ack()
     {
         TxBufferT& tx_buffer = m_socket.get_new_tx_buf();
-        //if (m_state == SipState::CALL_START)
-        {
-	    if (!m_to_contact.empty())
-	    {
-		    send_sip_header("ACK", m_to_contact, m_to_uri, tx_buffer);
-	    }
-	    else
-	    {
-		    send_sip_header("ACK", m_uri, m_to_uri, tx_buffer);
-	    }
-            //std::string m_sdp_session_o;
-            //std::string m_sdp_session_s;
-            //std::string m_sdp_session_c;
-            //m_tx_sdp_buffer.clear();
-            //TODO: populate sdp body
-            //m_tx_sdp_buffer << "v=0\r\n"
-            //	              << m_sdp_session_o << "\r\n"
-            //	      << m_sdp_session_s << "\r\n"
-            //	      << m_sdp_session_c << "\r\n"
-            //	      << "t=0 0\r\n";
-            //TODO: copy each m line and select appropriate a line
-            //tx_buffer << "Content-Type: application/sdp\r\n";
-            //tx_buffer << "Content-Length: " << m_tx_sdp_buffer.size() << "\r\n";
-            //tx_buffer << "Allow-Events: telephone-event\r\n";
-            tx_buffer << "Content-Length: 0\r\n";
-            tx_buffer << "\r\n";
-            //tx_buffer << m_tx_sdp_buffer.data();
-        }
-#if 0
-        else
-        {
-            send_sip_header("ACK", m_uri, m_to_uri, tx_buffer);
-            tx_buffer << "Content-Length: 0\r\n";
-            tx_buffer << "\r\n";
-        }
-#endif
+	if (!m_to_contact.empty())
+	{
+		send_sip_header("ACK", m_to_contact, m_to_uri, tx_buffer);
+	}
+	else
+	{
+		send_sip_header("ACK", m_uri, m_to_uri, tx_buffer);
+	}
+	//std::string m_sdp_session_o;
+	//std::string m_sdp_session_s;
+	//std::string m_sdp_session_c;
+	//m_tx_sdp_buffer.clear();
+	//TODO: populate sdp body
+	//m_tx_sdp_buffer << "v=0\r\n"
+	//	              << m_sdp_session_o << "\r\n"
+	//	      << m_sdp_session_s << "\r\n"
+	//	      << m_sdp_session_c << "\r\n"
+	//	      << "t=0 0\r\n";
+	//TODO: copy each m line and select appropriate a line
+	//tx_buffer << "Content-Type: application/sdp\r\n";
+	//tx_buffer << "Content-Length: " << m_tx_sdp_buffer.size() << "\r\n";
+	//tx_buffer << "Allow-Events: telephone-event\r\n";
+	tx_buffer << "Content-Length: 0\r\n";
+	tx_buffer << "\r\n";
+	//tx_buffer << m_tx_sdp_buffer.data();
+
         m_socket.send_buffered_data();
     }
 
@@ -768,12 +738,6 @@ private:
             dest.push_back(hexits[data[i] & 0x0F]);
         }
     }
-#if 0
-    void log_state_transition(SipState old_state, SipState new_state)
-    {
-        ESP_LOGI(TAG, "New state %d -> %d", (int)old_state, (int)new_state);
-    }
-#endif
     
     SocketT m_socket;
     SocketT m_rtp_socket;
@@ -808,12 +772,11 @@ private:
 
     std::function<void(const SipClientEvent&)> m_event_handler;
 
-    /* FreeRTOS event group to signal commands from other tasks */
-    EventGroupHandle_t m_command_event_group;
-
     sml::sm<SmT<SipClientInt<SocketT, Md5T, SmT>>>& m_sm;
 
     asio::io_context& m_io_context;
+    asio::steady_timer m_timer;
+    asio::steady_timer m_command_timeout_timer;
     
     static constexpr const uint16_t LOCAL_PORT = 5060;
     static constexpr const char* TRANSPORT_LOWER = "udp";
@@ -886,8 +849,8 @@ struct sip_states
 
         return make_transition_table(
             *idle + event<ev_start> / action_register_unauth = "waiting_for_auth_reply"_s,
-	    "waiting_for_auth_reply"_s + sml::on_entry<_> / [] { ESP_LOGV("SIP SM", "s1 on entry"); }, "waiting_for_auth_reply"_s + sml::on_exit<_> / [] { ESP_LOGV("SIP SM", "waiting_for_auth_reply on exit"); },
 	    "waiting_for_auth_reply"_s + event<ev_401_unauthorized> / action_register_auth = "waiting_for_auth_reply"_s,
+	    "waiting_for_auth_reply"_s + event<ev_reply_timeout> / action_register_auth = "waiting_for_auth_reply"_s,
 	    "waiting_for_auth_reply"_s + event<ev_200_ok> / action_is_registered = "registered"_s,
 	    "waiting_for_auth_reply"_s + event<ev_500_internal_server_error> / action_rx_internal_server_error = "idle"_s,
 	    "registered"_s + event<ev_request_call> / action_request_call = "registered"_s,
@@ -969,16 +932,6 @@ public:
         m_sip.request_cancel();
     }
 
-#if 0
-    void run()
-    {
-        m_sm.process_event(ev_start {});
-        //assert(sm.is(sml::X));
-
-        m_sip.run();
-    }
-#endif
-    
     void deinit()
     {
         m_sip.deinit();
