@@ -476,12 +476,18 @@ private:
 	}
 
 	
-	//Do not accept calls to e.g. **9 on fritzbox
-	//TODO: detect calls from self to **9 and do not accept them
-	if ((packet.get_method() == SipPacket::Method::INVITE) /*&& packet.get_p_called_party_id().empty()*/)
+	// Do not accept calls to e.g. **9 on fritzbox from self.
+	// But immediately pick up all other calls, also to **9 from other participants.
+	if ((packet.get_method() == SipPacket::Method::INVITE) && (packet.get_from().rfind(m_caller_display + "\"", 1) != 1))
 	{
+		ESP_LOGV(TAG, "Accept invite from : '%s'", packet.get_from().c_str());
 		send_sip_ok(packet);
 		m_sm.process_event(ev_rx_invite {});
+	}
+	else if (packet.get_method() == SipPacket::Method::INVITE)
+	{
+		ESP_LOGV(TAG, "Drop invite from : %s", packet.get_from().c_str());
+		send_sip_decline(packet);
 	}
 
 #if 0
@@ -636,6 +642,17 @@ private:
         TxBufferT& tx_buffer = m_socket.get_new_tx_buf();
 
         send_sip_reply_header("200 OK", packet, tx_buffer);
+        tx_buffer << "Content-Length: 0\r\n";
+        tx_buffer << "\r\n";
+
+        m_socket.send_buffered_data();
+    }
+
+    void send_sip_decline(const SipPacket& packet)
+    {
+        TxBufferT& tx_buffer = m_socket.get_new_tx_buf();
+
+        send_sip_reply_header("603 Decline", packet, tx_buffer);
         tx_buffer << "Content-Length: 0\r\n";
         tx_buffer << "\r\n";
 
