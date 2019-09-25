@@ -1,5 +1,5 @@
 /*
-   Copyright 2017 Christian Taedcke <hacking@taedcke.com>
+   Copyright 2017-2019 Christian Taedcke <hacking@taedcke.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -17,8 +17,8 @@
 #pragma once
 
 #include "sip_packet.h"
-
-#include "boost/sml.hpp"
+#include "sip_client_event.h"
+#include "sip_sml_logger.h"
 
 #include <cstdlib>
 #include <functional>
@@ -26,35 +26,6 @@
 
 namespace sml = boost::sml;
 
-
-namespace {
-struct Logger {
-  template <class SM, class TEvent>
-  void log_process_event(const TEvent&) {
-    ESP_LOGI(TAG, "[%s][process_event] %s\n", sml::aux::get_type_name<SM>(), sml::aux::get_type_name<TEvent>());
-  }
-
-  template <class SM, class TGuard, class TEvent>
-  void log_guard(const TGuard&, const TEvent&, bool result) {
-    ESP_LOGI(TAG, "[%s][guard] %s %s %s\n", sml::aux::get_type_name<SM>(), sml::aux::get_type_name<TGuard>(),
-           sml::aux::get_type_name<TEvent>(), (result ? "[OK]" : "[Reject]"));
-  }
-
-  template <class SM, class TAction, class TEvent>
-  void log_action(const TAction&, const TEvent&) {
-    ESP_LOGI(TAG, "[%s][action] %s %s\n", sml::aux::get_type_name<SM>(), sml::aux::get_type_name<TAction>(),
-           sml::aux::get_type_name<TEvent>());
-  }
-
-  template <class SM, class TSrcState, class TDstState>
-  void log_state_change(const TSrcState& src, const TDstState& dst) {
-    ESP_LOGI(TAG, "[%s][transition] %s -> %s\n", sml::aux::get_type_name<SM>(), src.c_str(), dst.c_str());
-  }
-
-private:
-	static constexpr const char* TAG = "SipSm";
-};
-} //namespace
 
 // event for sip sml state machine
 struct ev_start
@@ -112,28 +83,6 @@ struct ev_reply_timeout
 {
 };
 
-struct SipClientEvent
-{
-    enum class Event
-    {
-        CALL_START,
-        CALL_CANCELLED,
-        CALL_END,
-        BUTTON_PRESS,
-    };
-
-    enum class CancelReason
-    {
-        UNKNOWN,
-        CALL_DECLINED,
-        TARGET_BUSY,
-    };
-
-    Event event;
-    char button_signal = ' ';
-    uint16_t button_duration = 0;
-    CancelReason cancel_reason = CancelReason::UNKNOWN;
-};
 
 template <class SocketT, class Md5T, template<typename> typename SmT>
 class SipClientInt
@@ -968,61 +917,6 @@ public:
     void deinit()
     {
         m_sip.deinit();
-    }
-
-    void register_unauth()
-    {
-	    m_sip.register_unauth();
-    }
-
-    void is_registered()
-    {
-	    m_sip.is_registered();
-    }
-
-    void send_invite(const auto& event)
-    {
-	    m_sip.send_invite(event);
-    }
-
-    void request_call(const ev_request_call& event)
-    {
-	    m_sip.request_call(event);
-    }
-
-    void cancel_call(const ev_cancel_call& event)
-    {
-	    m_sip.cancel_call(event);
-    }
-
-    void handle_invite(const ev_rx_invite& event)
-    {
-	    m_sip.handle_invite(event);
-    }
-
-    void call_established()
-    {
-	    m_sip.call_established();
-    }
-
-    void call_cancelled()
-    {
-	    m_sip.call_cancelled();
-    }
-
-    void call_declined(const auto& event)
-    {
-	    m_sip.call_declined(event);
-    }
-
-    void handle_bye()
-    {
-	    m_sip.handle_bye();
-    }
-
-    void handle_internal_server_error()
-    {
-	    m_sip.handle_internal_server_error();
     }
 
 private:
