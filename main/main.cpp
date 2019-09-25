@@ -55,7 +55,7 @@ const int CONNECTED_BIT = BIT0;
 
 static const char* TAG = "main";
 
-using SipClientT = SipClient<LwipUdpClient, MbedtlsMd5>;
+using SipClientT = SipClient<AsioUdpClient, MbedtlsMd5>;
 
 static std::string ip_to_string(const ip4_addr_t* ip)
 {

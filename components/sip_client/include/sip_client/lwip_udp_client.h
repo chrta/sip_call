@@ -21,13 +21,6 @@
 #include <string>
 #include <cstring>
 
-
-#include "lwip/err.h"
-#include "lwip/sockets.h"
-#include "lwip/sys.h"
-#include "lwip/netdb.h"
-#include "lwip/dns.h"
-
 #include "esp_log.h"
 
 static constexpr const int RX_BUFFER_SIZE = 2048;
@@ -100,11 +93,11 @@ public:
 
 }
 
-class LwipUdpClient
+class AsioUdpClient
 {
 public:
 
-LwipUdpClient(asio::io_context& io_context, const std::string& server_ip, const std::string& server_port, uint16_t local_port, std::function<void(std::string)> on_received)
+AsioUdpClient(asio::io_context& io_context, const std::string& server_ip, const std::string& server_port, uint16_t local_port, std::function<void(std::string)> on_received)
     : m_io_context(io_context)
     , m_server_port(server_port)
     , m_server_ip(server_ip)
@@ -114,7 +107,7 @@ LwipUdpClient(asio::io_context& io_context, const std::string& server_ip, const 
     {
     }
 
-    ~LwipUdpClient()
+    ~AsioUdpClient()
     {
     }
 

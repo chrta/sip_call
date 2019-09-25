@@ -26,6 +26,36 @@
 
 namespace sml = boost::sml;
 
+
+namespace {
+struct Logger {
+  template <class SM, class TEvent>
+  void log_process_event(const TEvent&) {
+    ESP_LOGI(TAG, "[%s][process_event] %s\n", sml::aux::get_type_name<SM>(), sml::aux::get_type_name<TEvent>());
+  }
+
+  template <class SM, class TGuard, class TEvent>
+  void log_guard(const TGuard&, const TEvent&, bool result) {
+    ESP_LOGI(TAG, "[%s][guard] %s %s %s\n", sml::aux::get_type_name<SM>(), sml::aux::get_type_name<TGuard>(),
+           sml::aux::get_type_name<TEvent>(), (result ? "[OK]" : "[Reject]"));
+  }
+
+  template <class SM, class TAction, class TEvent>
+  void log_action(const TAction&, const TEvent&) {
+    ESP_LOGI(TAG, "[%s][action] %s %s\n", sml::aux::get_type_name<SM>(), sml::aux::get_type_name<TAction>(),
+           sml::aux::get_type_name<TEvent>());
+  }
+
+  template <class SM, class TSrcState, class TDstState>
+  void log_state_change(const TSrcState& src, const TDstState& dst) {
+    ESP_LOGI(TAG, "[%s][transition] %s -> %s\n", sml::aux::get_type_name<SM>(), src.c_str(), dst.c_str());
+  }
+
+private:
+	static constexpr const char* TAG = "SipSm";
+};
+} //namespace
+
 // event for sip sml state machine
 struct ev_start
 {
@@ -108,8 +138,10 @@ struct SipClientEvent
 template <class SocketT, class Md5T, template<typename> typename SmT>
 class SipClientInt
 {
+using SmlSmT = sml::sm<SmT<SipClientInt<SocketT, Md5T, SmT>>, sml::logger<Logger>>;
+	
 public:
-SipClientInt(asio::io_context& io_context, const std::string& user, const std::string& pwd, const std::string& server_ip, const std::string& server_port, const std::string& my_ip, sml::sm<SmT<SipClientInt<SocketT, Md5T, SmT>>>& sm)
+SipClientInt(asio::io_context& io_context, const std::string& user, const std::string& pwd, const std::string& server_ip, const std::string& server_port, const std::string& my_ip, SmlSmT& sm)
 	    : m_socket(io_context, server_ip, server_port, LOCAL_PORT, [this](std::string data) {
 
 			    rx(data);
@@ -772,7 +804,7 @@ private:
 
     std::function<void(const SipClientEvent&)> m_event_handler;
 
-    sml::sm<SmT<SipClientInt<SocketT, Md5T, SmT>>>& m_sm;
+    SmlSmT& m_sm;
 
     asio::io_context& m_io_context;
     asio::steady_timer m_timer;
@@ -850,7 +882,7 @@ struct sip_states
         return make_transition_table(
             *idle + event<ev_start> / action_register_unauth = "waiting_for_auth_reply"_s,
 	    "waiting_for_auth_reply"_s + event<ev_401_unauthorized> / action_register_auth = "waiting_for_auth_reply"_s,
-	    "waiting_for_auth_reply"_s + event<ev_reply_timeout> / action_register_auth = "waiting_for_auth_reply"_s,
+	    "waiting_for_auth_reply"_s + event<ev_reply_timeout> / action_register_unauth = "waiting_for_auth_reply"_s,
 	    "waiting_for_auth_reply"_s + event<ev_200_ok> / action_is_registered = "registered"_s,
 	    "waiting_for_auth_reply"_s + event<ev_500_internal_server_error> / action_rx_internal_server_error = "idle"_s,
 	    "registered"_s + event<ev_request_call> / action_request_call = "registered"_s,
@@ -879,9 +911,10 @@ public:
     {
 	    io_context, user, pwd, server_ip, server_port, my_ip, m_sm
     }
+    , m_logger{}
     , m_sm
     {
-        m_sip
+	    m_sip, m_logger
     }
     {
     }
@@ -995,7 +1028,8 @@ public:
 private:
 
     using SipClientInternal = SipClientInt<SocketT, Md5T, sip_states>;
+    using SmlSmT = sml::sm<sip_states<SipClientInternal>, sml::logger<Logger>>;
     SipClientInternal m_sip;
-
-    sml::sm<sip_states<SipClientInternal>> m_sm;
+    Logger m_logger;
+    SmlSmT m_sm;
 };
