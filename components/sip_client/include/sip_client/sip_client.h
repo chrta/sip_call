@@ -26,6 +26,59 @@
 
 namespace sml = boost::sml;
 
+// event for sip sml state machine
+struct ev_start
+{
+};
+struct ev_401_unauthorized
+{
+};
+struct ev_initiate_call
+{
+};
+struct ev_200_ok
+{
+};
+struct ev_183_session_progress
+{
+};
+struct ev_100_trying
+{
+};
+struct ev_request_call
+{
+	const std::string local_number;
+	const std::string caller_display;
+};
+struct ev_cancel_call
+{
+};
+
+struct ev_rx_invite
+{
+};
+
+struct ev_rx_bye
+{
+};
+
+struct ev_487_request_cancelled
+{
+};
+
+struct ev_486_busy_here
+{
+};
+
+struct ev_603_decline
+{
+};
+
+struct ev_500_internal_server_error
+{
+};
+
+
 struct SipClientEvent
 {
     enum class Event
@@ -57,11 +110,6 @@ SipClientInt(asio::io_context& io_context, const std::string& user, const std::s
 	    : m_socket(io_context, server_ip, server_port, LOCAL_PORT, [this](std::string data) {
 
 			    rx(data);
-			    tx();
-			    //TODO: rx must be called on a regular basis
-			    //TODO: rx must be called on a regular basis
-			    //TODO: or directly move to boost::sml
-			    
 		    })
 		, m_rtp_socket(io_context, server_ip, "7078", LOCAL_RTP_PORT, [this](std::string data) {
 				ESP_LOGV("RTP", "Received %d byte", data.size());
@@ -82,7 +130,8 @@ SipClientInt(asio::io_context& io_context, const std::string& user, const std::s
         , m_caller_display(m_user)
         , m_sdp_session_id(0)
         , m_command_event_group(xEventGroupCreate())
-		, m_sm(sm)
+	, m_sm(sm)
+	, m_io_context(io_context)
     {
     }
 
@@ -98,7 +147,7 @@ SipClientInt(asio::io_context& io_context, const std::string& user, const std::s
 	//TODO: remove this here, do it properly with boost::sml
 	if ( result_rtp && result_sip)
 	{
-		tx();
+		m_sm.process_event(ev_start {});
 	}
 
 
@@ -144,134 +193,185 @@ SipClientInt(asio::io_context& io_context, const std::string& user, const std::s
      */
     void request_ring(const std::string& local_number, const std::string& caller_display)
     {
-        if (m_state == SipState::REGISTERED)
-        {
             ESP_LOGI(TAG, "Request to call %s...", local_number.c_str());
-            m_call_id = std::rand() % 2147483647;
-            m_uri = "sip:" + local_number + "@" + m_server_ip;
-            m_to_uri = "sip:" + local_number + "@" + m_server_ip;
-            m_caller_display = caller_display;
-            xEventGroupSetBits(m_command_event_group, COMMAND_DIAL_BIT);
-        }
+	    asio::dispatch(m_io_context, [this, local_number, caller_display](){
+			    ESP_LOGI(TAG, "Request to call %s...", local_number.c_str());
+			    this->m_sm.process_event(ev_request_call {local_number, caller_display});
+		    });
     }
 
     void request_cancel()
     {
-        if ((m_state == SipState::RINGING) || (m_state == SipState::CALL_IN_PROGRESS))
-        {
             ESP_LOGI(TAG, "Request to CANCEL call");
-            xEventGroupSetBits(m_command_event_group, COMMAND_CANCEL_BIT);
-        }
+	    asio::dispatch(m_io_context, [this](){
+			    ESP_LOGI(TAG, "Request to CANCEL call");
+			    this->m_sm.process_event(ev_cancel_call {});
+		    });
     }
 
-#if 0    
-    void run()
-    {
-        tx();
-        rx();
-    }
-#endif
-    
     void deinit()
     {
         m_socket.deinit();
     }
 
-    //empty test function for sml transition
-    void test() const {}
-
-private:
-    enum class SipState
+    //send initial register request
+    void register_unauth()
     {
-        IDLE,
-        REGISTER_UNAUTH,
-        REGISTER_AUTH,
-        REGISTERED,
-        INVITE_UNAUTH,
-        INVITE_UNAUTH_SENT,
-        INVITE_AUTH,
-        RINGING,
-        CALL_START,
-        CALL_IN_PROGRESS,
-        CANCELLED,
-        ERROR,
-    };
-
-    void tx()
-    {
-        switch (m_state)
-        {
-        case SipState::IDLE:
-            //fall-through
-        case SipState::REGISTER_UNAUTH:
-            //sending REGISTER without auth
+	    //sending REGISTER without auth
             m_tag = std::rand() % 2147483647;
             m_branch = std::rand() % 2147483647;
             send_sip_register();
             m_tag = std::rand() % 2147483647;
             m_branch = std::rand() % 2147483647;
-            break;
-        case SipState::REGISTER_AUTH:
-            //sending REGISTER with auth
-            compute_auth_response("REGISTER", "sip:" + m_server_ip);
-            send_sip_register();
-            break;
-        case SipState::REGISTERED:
-            //wait for request
-            break;
-        case SipState::INVITE_UNAUTH:
-            //sending INVITE without auth
-            //m_tag = std::rand() % 2147483647;
-            m_sdp_session_id = std::rand();
-            send_sip_invite();
-            break;
-        case SipState::INVITE_UNAUTH_SENT:
-            break;
-        case SipState::INVITE_AUTH:
-            //sending INVITE with auth
-            m_branch = std::rand() % 2147483647;
-            compute_auth_response("INVITE", m_uri);
-            send_sip_invite();
-            break;
-        case SipState::RINGING:
-            if (xEventGroupWaitBits(m_command_event_group, COMMAND_CANCEL_BIT, true, true, 0))
-            {
-                ESP_LOGD(TAG, "Sending cancel request");
-                send_sip_cancel();
-            }
-            break;
-        case SipState::CALL_START:
-            send_sip_ack();
-            break;
-        case SipState::CALL_IN_PROGRESS:
-            if (xEventGroupWaitBits(m_command_event_group, COMMAND_CANCEL_BIT, true, true, 0))
-            {
-                ESP_LOGD(TAG, "Sending bye request");
-                //send_sip_bye();
-            }
-            break;
-        case SipState::CANCELLED:
-            send_sip_ack();
-            m_tag = std::rand() % 2147483647;
-            m_branch = std::rand() % 2147483647;
-            break;
-        case SipState::ERROR:
-            break;
-        }
     }
 
+    //send  register request
+    void register_auth()
+    {
+	    m_sip_sequence_number++;
+	    //sending REGISTER with auth
+	    compute_auth_response("REGISTER", "sip:" + m_server_ip);
+            send_sip_register();
+    }
+
+    void is_registered()
+    {
+	    m_sip_sequence_number++;
+	    m_nonce = "";
+	    m_realm = "";
+	    m_response = "";
+	    ESP_LOGI(TAG, "OK :)");
+	    m_uri = "sip:**613@" + m_server_ip;
+	    m_to_uri = "sip:**613@" + m_server_ip;
+    }
+
+    void send_invite(const ev_401_unauthorized& event)
+    {
+	    //first ack the prev sip 401/407 packet
+
+	    //expected ack after 401 after we sent invite
+	    send_sip_ack();
+
+	    m_sdp_session_id = std::rand();
+	    
+            // or sending INVITE with auth
+            m_branch = std::rand() % 2147483647;
+	    m_sip_sequence_number++;
+            compute_auth_response("INVITE", m_uri);
+            send_sip_invite();
+
+    }
+
+    void send_invite(const ev_initiate_call& event)
+    {
+	    //sending INVITE without auth
+            //m_tag = std::rand() % 2147483647;
+	    m_sip_sequence_number++;
+            m_sdp_session_id = std::rand();
+	    m_branch = std::rand() % 2147483647;
+            send_sip_invite();
+    }
+
+    void request_call(const ev_request_call& event)
+    {
+	    ESP_LOGI(TAG, "Request to call %s...", event.local_number.c_str());
+            m_call_id = std::rand() % 2147483647;
+            m_uri = "sip:" + event.local_number + "@" + m_server_ip;
+            m_to_uri = "sip:" + event.local_number + "@" + m_server_ip;
+            m_caller_display = event.caller_display;
+	    m_sm.process_event(ev_initiate_call {});		
+    }
+
+    void cancel_call(const ev_cancel_call& event)
+    {
+	    ESP_LOGD(TAG, "Sending cancel request");
+	    send_sip_cancel();
+
+	    //TODO: if call in progress, send bye
+	    //ESP_LOGD(TAG, "Sending bye request");
+	    //send_sip_bye();
+    }
+
+    void handle_invite(const ev_rx_invite& event)
+    {
+	    //received an invite, answered it already with ok, so new call is established, because someone called us
+	    if (m_event_handler)
+	    {
+                    m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_START });
+	    }
+
+    }
+
+    void call_established()
+    {
+	    //ack to ok after invite
+	    send_sip_ack();
+	    if (m_event_handler)
+	    {
+                    m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_START });
+	    }
+    }
+
+    void call_cancelled()
+    {
+	    if (m_event_handler)
+	    {
+                    m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_CANCELLED });
+	    }
+	    send_sip_ack();
+            m_tag = std::rand() % 2147483647;
+            m_branch = std::rand() % 2147483647;
+	    m_sip_sequence_number++;
+    }
+
+    void call_declined(const ev_486_busy_here&)
+    {
+	    if (m_event_handler)
+	    {
+                    m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_CANCELLED, ' ', 0, SipClientEvent::CancelReason::TARGET_BUSY });
+	    }
+	    
+    }
+
+    void call_declined(const ev_603_decline&)
+    {
+	    if (m_event_handler)
+	    {
+                    m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_CANCELLED, ' ', 0, SipClientEvent::CancelReason::CALL_DECLINED });
+	    }
+	    
+    }
+
+    void handle_bye()
+    {
+	    m_sip_sequence_number++;
+	    if (m_event_handler)
+	    {
+                    m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_END });
+	    }
+    }
+
+    void handle_internal_server_error()
+    {
+	    m_tag = std::rand() % 2147483647;
+            m_branch = std::rand() % 2147483647;
+	    m_sip_sequence_number++;
+
+	    // wait for timeout and restart again
+	    asio::steady_timer t(m_io_context, asio::chrono::seconds(5));
+	    t.async_wait([this](const asio::error_code&)
+			 {
+				 this->m_sm.process_event(ev_start {});
+			 });
+    }
+
+    
+private:
+    
     void rx(std::string recv_string)
     {
-        if (m_state == SipState::REGISTERED)
-        {
-            if (xEventGroupWaitBits(m_command_event_group, COMMAND_DIAL_BIT, true, true, 0))
-            {
-                m_state = SipState::INVITE_UNAUTH;
-                log_state_transition(SipState::REGISTERED, m_state);
-            }
-            //return;
-        }
-        else if (m_state == SipState::ERROR)
+#if 0
+        if (m_state == SipState::ERROR)
         {
 		//TODO: delay is evil for asio
 		//vTaskDelay(2000 / portTICK_RATE_MS);
@@ -280,22 +380,7 @@ private:
             log_state_transition(SipState::ERROR, m_state);
             return;
         }
-        else if (m_state == SipState::INVITE_UNAUTH)
-        {
-            m_state = SipState::INVITE_UNAUTH_SENT;
-            log_state_transition(SipState::INVITE_UNAUTH, m_state);
-            return;
-        }
-        else if (m_state == SipState::CALL_START)
-        {
-            m_state = SipState::CALL_IN_PROGRESS;
-            log_state_transition(SipState::CALL_START, m_state);
-            return;
-        }
-
-        //The timeout is a workaround to be able to end a CANCEL request during ring
-        //std::string recv_string = m_socket.receive(SOCKET_RX_TIMEOUT_MSEC);
-
+#endif
         if (recv_string.empty())
         {
             return;
@@ -313,8 +398,7 @@ private:
 
         if (reply == SipPacket::Status::SERVER_ERROR_500)
         {
-            log_state_transition(m_state, SipState::ERROR);
-            m_state = SipState::ERROR;
+	    m_sm.process_event(ev_500_internal_server_error {});
             return;
         }
         else if ((reply == SipPacket::Status::UNAUTHORIZED_401) || (reply == SipPacket::Status::PROXY_AUTH_REQ_407))
@@ -322,7 +406,7 @@ private:
             m_realm = packet.get_realm();
             m_nonce = packet.get_nonce();
         }
-        else if ((reply == SipPacket::Status::UNKNOWN) && ((packet.get_method() == SipPacket::Method::NOTIFY) || (packet.get_method() == SipPacket::Method::BYE) || (packet.get_method() == SipPacket::Method::INFO) || ((packet.get_method() == SipPacket::Method::INVITE) && packet.get_p_called_party_id().empty())))
+        else if ((reply == SipPacket::Status::UNKNOWN) && ((packet.get_method() == SipPacket::Method::NOTIFY) || (packet.get_method() == SipPacket::Method::BYE) || (packet.get_method() == SipPacket::Method::INFO) ))
         {
             send_sip_ok(packet);
         }
@@ -337,153 +421,73 @@ private:
             m_to_tag = packet.get_to_tag();
         }
 
+	if (reply == SipPacket::Status::UNAUTHORIZED_401)
+	{
+		m_sm.process_event(ev_401_unauthorized {});
+	}
+	else if (reply == SipPacket::Status::OK_200)
+	{
+		m_sm.process_event(ev_200_ok {});
+	}
+	else if (reply == SipPacket::Status::TRYING_100)
+	{
+		m_sm.process_event(ev_100_trying {});
+	}
+	else if (reply == SipPacket::Status::SESSION_PROGRESS_183)
+	{
+		m_sm.process_event(ev_183_session_progress {});
+	}
+	else if (reply == SipPacket::Status::PROXY_AUTH_REQ_407)
+	{
+		m_sm.process_event(ev_401_unauthorized {});
+	}
+	else if (reply == SipPacket::Status::REQUEST_CANCELLED_487)
+	{
+		m_sm.process_event(ev_487_request_cancelled {});
+	}
+	else if (reply == SipPacket::Status::DECLINE_603)
+	{
+		send_sip_ack();
+                m_sip_sequence_number++;
+                m_branch = std::rand() % 2147483647;
+
+		m_sm.process_event(ev_603_decline {});
+	}
+	else if (reply == SipPacket::Status::BUSY_HERE_486)
+	{
+		send_sip_ack();
+                m_sip_sequence_number++;
+                m_branch = std::rand() % 2147483647;
+
+		m_sm.process_event(ev_486_busy_here {});
+	}
+	
+	if (packet.get_method() == SipPacket::Method::BYE)
+	{
+		m_sm.process_event(ev_rx_bye {});
+	}
+	else if ((packet.get_method() == SipPacket::Method::INFO)
+		 && (packet.get_content_type() == SipPacket::ContentType::APPLICATION_DTMF_RELAY))
+	{
+                if (m_event_handler)
+                {
+			m_event_handler(SipClientEvent { SipClientEvent::Event::BUTTON_PRESS, packet.get_dtmf_signal(), packet.get_dtmf_duration() });
+                }
+	}
+
+	
+	//Do not accept calls to e.g. **9 on fritzbox
+	//TODO: detect calls from self to **9 and do not accept them
+	if ((packet.get_method() == SipPacket::Method::INVITE) /*&& packet.get_p_called_party_id().empty()*/)
+	{
+		send_sip_ok(packet);
+		m_sm.process_event(ev_rx_invite {});
+	}
+
+#if 0
         SipState old_state = m_state;
         switch (m_state)
         {
-        case SipState::IDLE:
-            //fall-trough
-        case SipState::REGISTER_UNAUTH:
-            m_state = SipState::REGISTER_AUTH;
-            m_sip_sequence_number++;
-            break;
-        case SipState::REGISTER_AUTH:
-            if (reply == SipPacket::Status::OK_200)
-            {
-                m_sip_sequence_number++;
-                m_nonce = "";
-                m_realm = "";
-                m_response = "";
-                ESP_LOGI(TAG, "OK :)");
-                m_uri = "sip:**613@" + m_server_ip;
-                m_to_uri = "sip:**613@" + m_server_ip;
-                m_state = SipState::REGISTERED;
-            }
-            else
-            {
-                m_state = SipState::ERROR;
-            }
-            break;
-        case SipState::REGISTERED:
-            //Do not accept calls to e.g. **9 on fritzbox
-            if ((packet.get_method() == SipPacket::Method::INVITE) && packet.get_p_called_party_id().empty())
-            {
-                //received an invite, answered it already with ok, so new call is established, because someone called us
-                m_state = SipState::CALL_START;
-                if (m_event_handler)
-                {
-                    m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_START });
-                }
-            }
-            break;
-        case SipState::INVITE_UNAUTH_SENT:
-        case SipState::INVITE_UNAUTH:
-            if ((reply == SipPacket::Status::UNAUTHORIZED_401) || (reply == SipPacket::Status::PROXY_AUTH_REQ_407))
-            {
-                m_state = SipState::INVITE_AUTH;
-                send_sip_ack();
-                m_sip_sequence_number++;
-            }
-            else if ((reply == SipPacket::Status::OK_200) || (reply == SipPacket::Status::SESSION_PROGRESS_183))
-            {
-                m_state = SipState::RINGING;
-                m_nonce = "";
-                m_realm = "";
-                m_response = "";
-                ESP_LOGV(TAG, "Start RINGing...");
-            }
-            else if (reply != SipPacket::Status::TRYING_100)
-            {
-                m_state = SipState::ERROR;
-            }
-            break;
-        case SipState::INVITE_AUTH:
-            if ((reply == SipPacket::Status::UNAUTHORIZED_401) || (reply == SipPacket::Status::PROXY_AUTH_REQ_407))
-            {
-                m_state = SipState::ERROR;
-            }
-            else if ((reply == SipPacket::Status::OK_200) || (reply == SipPacket::Status::SESSION_PROGRESS_183) || (reply == SipPacket::Status::TRYING_100))
-            {
-                //trying is not yet ringing, but change state to not send invite again
-                m_state = SipState::RINGING;
-                m_nonce = "";
-                m_realm = "";
-                m_response = "";
-                ESP_LOGV(TAG, "Start RINGing...");
-            }
-            else
-            {
-                m_state = SipState::ERROR;
-            }
-            break;
-        case SipState::RINGING:
-            if (reply == SipPacket::Status::SESSION_PROGRESS_183)
-            {
-                //TODO parse session progress reply and send appropriate answer
-                //m_state = SipState::ERROR;
-            }
-            else if (reply == SipPacket::Status::OK_200)
-            {
-                //other side picked up, send an ack
-                m_state = SipState::CALL_START;
-                if (m_event_handler)
-                {
-                    m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_START });
-                }
-            }
-            else if (reply == SipPacket::Status::REQUEST_CANCELLED_487)
-            {
-                m_state = SipState::CANCELLED;
-                if (m_event_handler)
-                {
-                    m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_CANCELLED });
-                }
-            }
-            else if (reply == SipPacket::Status::PROXY_AUTH_REQ_407)
-            {
-                send_sip_ack();
-                m_sip_sequence_number++;
-                m_state = SipState::INVITE_AUTH;
-                ESP_LOGV(TAG, "Go back to send invite with auth...");
-            }
-            else if ((reply == SipPacket::Status::DECLINE_603) || (reply == SipPacket::Status::BUSY_HERE_486))
-            {
-                send_sip_ack();
-                m_sip_sequence_number++;
-                m_branch = std::rand() % 2147483647;
-                m_state = SipState::REGISTERED;
-                SipClientEvent::CancelReason cancel_reason = SipClientEvent::CancelReason::CALL_DECLINED;
-                if (reply == SipPacket::Status::BUSY_HERE_486)
-                {
-                    cancel_reason = SipClientEvent::CancelReason::TARGET_BUSY;
-                }
-                if (m_event_handler)
-                {
-                    m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_CANCELLED, ' ', 0, cancel_reason });
-                }
-            }
-            break;
-        case SipState::CALL_START:
-            //should not reach this point
-            break;
-        case SipState::CALL_IN_PROGRESS:
-            if (packet.get_method() == SipPacket::Method::BYE)
-            {
-                m_sip_sequence_number++;
-                m_state = SipState::REGISTERED;
-                if (m_event_handler)
-                {
-                    m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_END });
-                }
-            }
-            else if ((packet.get_method() == SipPacket::Method::INFO)
-                && (packet.get_content_type() == SipPacket::ContentType::APPLICATION_DTMF_RELAY))
-            {
-                if (m_event_handler)
-                {
-                    m_event_handler(SipClientEvent { SipClientEvent::Event::BUTTON_PRESS, packet.get_dtmf_signal(), packet.get_dtmf_duration() });
-                }
-            }
-            break;
         case SipState::CANCELLED:
             if (reply == SipPacket::Status::OK_200)
             {
@@ -501,6 +505,7 @@ private:
         {
             log_state_transition(old_state, m_state);
         }
+#endif
     }
 
     void send_sip_register()
@@ -587,9 +592,16 @@ private:
     void send_sip_ack()
     {
         TxBufferT& tx_buffer = m_socket.get_new_tx_buf();
-        if (m_state == SipState::CALL_START)
+        //if (m_state == SipState::CALL_START)
         {
-            send_sip_header("ACK", m_to_contact, m_to_uri, tx_buffer);
+	    if (!m_to_contact.empty())
+	    {
+		    send_sip_header("ACK", m_to_contact, m_to_uri, tx_buffer);
+	    }
+	    else
+	    {
+		    send_sip_header("ACK", m_uri, m_to_uri, tx_buffer);
+	    }
             //std::string m_sdp_session_o;
             //std::string m_sdp_session_s;
             //std::string m_sdp_session_c;
@@ -608,12 +620,14 @@ private:
             tx_buffer << "\r\n";
             //tx_buffer << m_tx_sdp_buffer.data();
         }
+#if 0
         else
         {
             send_sip_header("ACK", m_uri, m_to_uri, tx_buffer);
             tx_buffer << "Content-Length: 0\r\n";
             tx_buffer << "\r\n";
         }
+#endif
         m_socket.send_buffered_data();
     }
 
@@ -737,14 +751,13 @@ private:
             dest.push_back(hexits[data[i] & 0x0F]);
         }
     }
-
+#if 0
     void log_state_transition(SipState old_state, SipState new_state)
     {
         ESP_LOGI(TAG, "New state %d -> %d", (int)old_state, (int)new_state);
     }
-
-    SipState m_state = SipState::IDLE;
-
+#endif
+    
     SocketT m_socket;
     SocketT m_rtp_socket;
     Md5T m_md5;
@@ -782,9 +795,9 @@ private:
     EventGroupHandle_t m_command_event_group;
 
     sml::sm<SmT<SipClientInt<SocketT, Md5T, SmT>>>& m_sm;
-    static constexpr uint8_t COMMAND_DIAL_BIT = BIT0;
-    static constexpr uint8_t COMMAND_CANCEL_BIT = BIT1;
 
+    asio::io_context& m_io_context;
+    
     static constexpr const uint16_t LOCAL_PORT = 5060;
     static constexpr const char* TRANSPORT_LOWER = "udp";
     static constexpr const char* TRANSPORT_UPPER = "UDP";
@@ -792,16 +805,6 @@ private:
     static constexpr uint32_t SOCKET_RX_TIMEOUT_MSEC = 200;
     static constexpr uint16_t LOCAL_RTP_PORT = 7078;
     static constexpr const char* TAG = "SipClient";
-};
-
-struct ev_start
-{
-};
-struct ev_2
-{
-};
-struct ev_3
-{
 };
 
 template <class SipClientT>
@@ -813,15 +816,77 @@ struct sip_states
 
         const auto idle = state<class idle>;
 
-        const auto action = [](SipClientT& sip, const auto& event) { /// event is deduced, order is not important
+	const auto action_register_unauth = [](SipClientT& sip, const auto& event) {
             (void)event;
-            sip.test();
+            sip.register_unauth();
+        };
+
+	const auto action_register_auth = [](SipClientT& sip, const auto& event) {
+            (void)event;
+            sip.register_auth();
+        };
+
+	const auto action_is_registered = [](SipClientT& sip, const auto& event) {
+            (void)event;
+            sip.is_registered();
+        };
+
+	const auto action_send_invite = [](SipClientT& sip, const auto& event) {
+            sip.send_invite(event);
+        };
+
+	const auto action_request_call = [](SipClientT& sip, const auto& event) {
+            sip.request_call(event);
+        };
+
+	const auto action_cancel_call = [](SipClientT& sip, const auto& event) {
+            sip.cancel_call(event);
+        };
+
+	const auto action_rx_invite = [](SipClientT& sip, const auto& event) {
+		sip.handle_invite(event);
+        };
+
+	const auto action_call_established = [](SipClientT& sip, const auto& event) {
+		sip.call_established();
+        };
+
+	const auto action_call_cancelled = [](SipClientT& sip, const auto& event) {
+		sip.call_cancelled();
+        };
+
+	const auto action_call_declined = [](SipClientT& sip, const auto& event) {
+		sip.call_declined(event);
+        };
+
+	const auto action_rx_bye = [](SipClientT& sip, const auto& event) {
+		sip.handle_bye();
+        };
+
+	const auto action_rx_internal_server_error = [](SipClientT& sip, const auto& event) {
+		sip.handle_internal_server_error();
         };
 
         return make_transition_table(
-            *idle + event<ev_start> = "s1"_s,
-	    "s1"_s + sml::on_entry<_> / [] { ESP_LOGV("SIP SM", "s1 on entry"); }, "s1"_s + sml::on_exit<_> / [] { ESP_LOGV("SIP SM", "s1 on exit"); },
-	    "s1"_s + event<ev_2> / action = state<class s2>, state<class s2> + event<ev_3> = X);
+            *idle + event<ev_start> / action_register_unauth = "waiting_for_auth_reply"_s,
+	    "waiting_for_auth_reply"_s + sml::on_entry<_> / [] { ESP_LOGV("SIP SM", "s1 on entry"); }, "waiting_for_auth_reply"_s + sml::on_exit<_> / [] { ESP_LOGV("SIP SM", "waiting_for_auth_reply on exit"); },
+	    "waiting_for_auth_reply"_s + event<ev_401_unauthorized> / action_register_auth = "waiting_for_auth_reply"_s,
+	    "waiting_for_auth_reply"_s + event<ev_200_ok> / action_is_registered = "registered"_s,
+	    "waiting_for_auth_reply"_s + event<ev_500_internal_server_error> / action_rx_internal_server_error = "idle"_s,
+	    "registered"_s + event<ev_request_call> / action_request_call = "registered"_s,
+	    "registered"_s + event<ev_initiate_call> / action_send_invite = "calling"_s,
+	    "registered"_s + event<ev_rx_invite> / action_rx_invite = "call_established"_s,
+	    "calling"_s + event<ev_401_unauthorized> / action_send_invite = "calling"_s,
+	    "calling"_s + event<ev_cancel_call> / action_cancel_call = "calling"_s,
+	    "calling"_s + event<ev_183_session_progress> = "calling"_s,
+	    "calling"_s + event<ev_100_trying> = "calling"_s,
+	    "calling"_s + event<ev_200_ok> / action_call_established = "call_established"_s,
+	    "calling"_s + event<ev_487_request_cancelled> / action_call_cancelled = "registered"_s,
+	    "calling"_s + event<ev_486_busy_here> / action_call_declined = "registered"_s,
+	    "calling"_s + event<ev_603_decline> / action_call_declined = "registered"_s,
+	    "call_established"_s + event<ev_rx_bye> / action_rx_bye = "registered"_s,
+	    "call_established"_s + event<ev_200_ok> = X,
+	    "calling"_s + event<ev_200_ok> = X );
     }
 };
 
@@ -900,6 +965,61 @@ public:
     void deinit()
     {
         m_sip.deinit();
+    }
+
+    void register_unauth()
+    {
+	    m_sip.register_unauth();
+    }
+
+    void is_registered()
+    {
+	    m_sip.is_registered();
+    }
+
+    void send_invite(const auto& event)
+    {
+	    m_sip.send_invite(event);
+    }
+
+    void request_call(const ev_request_call& event)
+    {
+	    m_sip.request_call(event);
+    }
+
+    void cancel_call(const ev_cancel_call& event)
+    {
+	    m_sip.cancel_call(event);
+    }
+
+    void handle_invite(const ev_rx_invite& event)
+    {
+	    m_sip.handle_invite(event);
+    }
+
+    void call_established()
+    {
+	    m_sip.call_established();
+    }
+
+    void call_cancelled()
+    {
+	    m_sip.call_cancelled();
+    }
+
+    void call_declined(const auto& event)
+    {
+	    m_sip.call_declined(event);
+    }
+
+    void handle_bye()
+    {
+	    m_sip.handle_bye();
+    }
+
+    void handle_internal_server_error()
+    {
+	    m_sip.handle_internal_server_error();
     }
 
 private:

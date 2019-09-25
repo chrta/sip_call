@@ -20,7 +20,6 @@
 #include "freertos/event_groups.h"
 
 #include "esp_event.h"
-#include "esp_event_loop.h"
 #include "esp_system.h"
 #include "esp_wifi.h"
 #include "nvs_flash.h"
@@ -186,6 +185,8 @@ static void sip_task(void* pvParameters)
 
 extern "C" void app_main(void)
 {
+    // seed for std::rand() used in the sip client
+    std::srand(esp_random());
     // Execute io_context.run() only from one thread
     asio::io_context io_context{1};
 
@@ -197,6 +198,7 @@ extern "C" void app_main(void)
     nvs_flash_init();
     initialize_wifi(&client);
 
+    // reseed after initializing wifi
     std::srand(esp_random());
     // without pinning this to core 0, funny stuff (crashes) happen,
     // because some c++ objects are not fully initialized
