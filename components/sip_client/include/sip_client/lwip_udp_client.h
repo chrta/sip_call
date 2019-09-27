@@ -238,9 +238,5 @@ private:
     std::function<void(std::string)> m_on_received;
     asio::ip::udp::endpoint m_destination_endpoint;
 
-    fd_set m_rx_fds;
-    struct timeval m_rx_timeval;
-
     static constexpr const char* TAG = "UdpSocket";
-    static constexpr const int INVALID_SOCKET = -1;
 };
