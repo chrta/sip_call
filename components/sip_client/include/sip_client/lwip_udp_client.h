@@ -82,7 +82,7 @@ private:
 using TxBufferT = Buffer<TX_BUFFER_SIZE>;
 
 
-namespace {
+
 class TcpIpAdapterInitializer
 {
 public:
@@ -91,7 +91,6 @@ public:
 	}
 };
 
-}
 
 class AsioUdpClient
 {
