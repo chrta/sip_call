@@ -26,9 +26,11 @@
 static constexpr const int RX_BUFFER_SIZE = 2048;
 static constexpr const int TX_BUFFER_SIZE = 2048;
 
+#ifndef COMPILE_FOR_NATIVE
 //Workaround for asio esp-idf issue
 //https://github.com/espressif/esp-idf/issues/3557
 char* if_indextoname(unsigned int , char* ) { return 0; }
+#endif
 
 template<std::size_t SIZE>
 class Buffer
@@ -65,6 +67,14 @@ public:
         return *this;
     }
 
+#ifdef COMPILE_FOR_NATIVE
+    Buffer<SIZE>& operator<<(size_t i)
+    {
+        snprintf(m_buffer.data() + strlen(m_buffer.data()), m_buffer.size() - strlen(m_buffer.data()), "%lu", i);
+        return *this;
+    }
+#endif
+
     const char* data() const
     {
         return m_buffer.data();
@@ -87,7 +97,9 @@ class TcpIpAdapterInitializer
 {
 public:
 	TcpIpAdapterInitializer() {
+#ifndef COMPILE_FOR_NATIVE		
 		tcpip_adapter_init();
+#endif
 	}
 };
 
@@ -181,22 +193,21 @@ AsioUdpClient(asio::io_context& io_context, const std::string& server_ip, const 
 
     void do_receive()
     {
-	    asio::ip::udp::endpoint sender_endpoint;
 	    m_socket.async_receive_from(
-		    asio::buffer(m_rx_buffer.data(), m_rx_buffer.size()), sender_endpoint,
+                    asio::buffer(m_rx_buffer), m_sender_endpoint,
 		    [this](std::error_code ec, std::size_t bytes_recvd)
 		    {
 			    if (!ec && bytes_recvd > 0)
 			    {
 				    m_rx_buffer[bytes_recvd] = '\0';
 				    ESP_LOGV(TAG, "Received %d byte", bytes_recvd);
-				    ESP_LOGV(TAG, "Received following data: %s", m_rx_buffer.data());
+                                    ESP_LOGV(TAG, "Received following data: %s", m_rx_buffer.data());
 				    if (m_on_received)
 				    {
-					    m_on_received(std::string(m_rx_buffer.data(), bytes_recvd));
+                                            m_on_received(std::string(m_rx_buffer.data(), bytes_recvd));
 				    }
 			    }
-			    do_receive();
+                            do_receive();
 		    });	    
     }
 
@@ -237,6 +248,8 @@ private:
     asio::ip::udp::socket m_socket;
     std::function<void(std::string)> m_on_received;
     asio::ip::udp::endpoint m_destination_endpoint;
+    asio::ip::udp::endpoint m_sender_endpoint;
+
 
     static constexpr const char* TAG = "UdpSocket";
 };

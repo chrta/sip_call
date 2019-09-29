@@ -26,11 +26,11 @@ using SmlSmT = sml::sm<SmT<SipClientInt<SocketT, Md5T, SmT>>, sml::logger<Logger
 	
 public:
 SipClientInt(asio::io_context& io_context, const std::string& user, const std::string& pwd, const std::string& server_ip, const std::string& server_port, const std::string& my_ip, SmlSmT& sm)
-	    : m_socket(io_context, server_ip, server_port, LOCAL_PORT, [this](std::string data) {
+            : m_socket(io_context, server_ip, server_port, LOCAL_PORT, [this](std::string data) {
 
-			    rx(data);
+                            rx(data);
 		    })
-		, m_rtp_socket(io_context, server_ip, "7078", LOCAL_RTP_PORT, [this](std::string data) {
+                , m_rtp_socket(io_context, server_ip, "7078", LOCAL_RTP_PORT, [this](std::string data) {
 				//ESP_LOGV("RTP", "Received %d byte", data.size());
 			})
         , m_server_ip(server_ip)
@@ -295,7 +295,7 @@ private:
             return;
         }
 
-        SipPacket packet(recv_string.c_str(), recv_string.size());
+        SipPacket packet(const_cast<char*>(recv_string.data()), recv_string.size());
         if (!packet.parse())
         {
             ESP_LOGI(TAG, "Parsing the packet failed");
