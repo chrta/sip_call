@@ -1,17 +1,17 @@
 #pragma once
 
-#include <stdio.h>
 #include <stdarg.h>
+#include <stdio.h>
 
 static inline void my_log(const char* level, const char* prefix, const char* fmt, ...)
 {
-	printf("[%s] ", level);
-	printf("[%s] ", prefix);
-	va_list args;
-	va_start (args, fmt);
-	vprintf (fmt, args);
-	va_end (args);
-	printf("\n");
+    printf("[%s] ", level);
+    printf("[%s] ", prefix);
+    va_list args;
+    va_start(args, fmt);
+    vprintf(fmt, args);
+    va_end(args);
+    printf("\n");
 }
 
 #define ESP_LOGE(prefix, fmt, ...) my_log("[ERR] ", prefix, fmt, ##__VA_ARGS__)

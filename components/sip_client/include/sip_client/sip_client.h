@@ -16,9 +16,9 @@
 
 #pragma once
 
-#include "sip_sml_logger.h"
-#include "sip_sml_events.h"
 #include "sip_client_internal.h"
+#include "sip_sml_events.h"
+#include "sip_sml_logger.h"
 #include "sip_states.h"
 
 #include <cstdlib>
@@ -30,15 +30,11 @@ class SipClient
 {
 public:
     SipClient(asio::io_context& io_context, const std::string& user, const std::string& pwd, const std::string& server_ip, const std::string& server_port, const std::string& my_ip)
-        : m_sip
-    {
-	    io_context, user, pwd, server_ip, server_port, my_ip, m_sm
-    }
-    , m_logger{}
-    , m_sm
-    {
-	    m_sip, m_logger
-    }
+        : m_sip {
+            io_context, user, pwd, server_ip, server_port, my_ip, m_sm
+        }
+        , m_logger {}
+        , m_sm { m_sip, m_logger }
     {
     }
 
@@ -94,7 +90,6 @@ public:
     }
 
 private:
-
     using SipClientInternal = SipClientInt<SocketT, Md5T, sip_states>;
     using SmlSmT = sml::sm<sip_states<SipClientInternal>, sml::logger<Logger>>;
     SipClientInternal m_sip;

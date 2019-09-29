@@ -35,15 +35,15 @@ static const char* TAG = "main";
 
 using SipClientT = SipClient<AsioUdpClient, MbedtlsMd5>;
 
-struct handlers_t {
-	SipClientT &client;
-	asio::io_context &io_context;
+struct handlers_t
+{
+    SipClientT& client;
+    asio::io_context& io_context;
 };
-
 
 static void sip_task(void* pvParameters)
 {
-    handlers_t* handlers = static_cast<handlers_t *>(pvParameters);
+    handlers_t* handlers = static_cast<handlers_t*>(pvParameters);
     SipClientT& client = handlers->client;
 
     for (;;)
@@ -55,7 +55,7 @@ static void sip_task(void* pvParameters)
             if (!result)
             {
                 ESP_LOGI(TAG, "Waiting to try again...");
-		sleep(2); //sleep two seconds
+                sleep(2); //sleep two seconds
                 continue;
             }
             client.set_event_handler([](const SipClientEvent& event) {
@@ -77,22 +77,21 @@ static void sip_task(void* pvParameters)
             });
         }
 
-	handlers->io_context.run();
-
+        handlers->io_context.run();
     }
 }
 
 int main(int argc, char* argv[])
 {
     // seed for std::rand() used in the sip client
-	std::srand(time(nullptr));
-       
+    std::srand(time(nullptr));
+
     // Execute io_context.run() only from one thread
-    asio::io_context io_context{1};
+    asio::io_context io_context { 1 };
 
     SipClientT client { io_context, CONFIG_SIP_USER, CONFIG_SIP_PASSWORD, CONFIG_SIP_SERVER_IP, CONFIG_SIP_SERVER_PORT, CONFIG_LOCAL_IP };
 
-    handlers_t handlers{client, io_context};
- 
+    handlers_t handlers { client, io_context };
+
     sip_task(&handlers);
 }

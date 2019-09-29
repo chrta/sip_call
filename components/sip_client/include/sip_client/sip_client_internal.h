@@ -16,23 +16,28 @@
 
 #pragma once
 
-#include "sip_packet.h"
 #include "sip_client_event.h"
+#include "sip_packet.h"
+#include "sip_sml_events.h"
+#include "sip_sml_logger.h"
 
-template <class SocketT, class Md5T, template<typename> typename SmT>
+#include "boost/sml.hpp"
+
+namespace sml = boost::sml;
+
+template <class SocketT, class Md5T, template <typename> typename SmT>
 class SipClientInt
 {
-using SmlSmT = sml::sm<SmT<SipClientInt<SocketT, Md5T, SmT>>, sml::logger<Logger>>;
-	
-public:
-SipClientInt(asio::io_context& io_context, const std::string& user, const std::string& pwd, const std::string& server_ip, const std::string& server_port, const std::string& my_ip, SmlSmT& sm)
-            : m_socket(io_context, server_ip, server_port, LOCAL_PORT, [this](std::string data) {
+    using SmlSmT = sml::sm<SmT<SipClientInt<SocketT, Md5T, SmT>>, sml::logger<Logger>>;
 
-                            rx(data);
-		    })
-                , m_rtp_socket(io_context, server_ip, "7078", LOCAL_RTP_PORT, [this](std::string data) {
-				//ESP_LOGV("RTP", "Received %d byte", data.size());
-			})
+public:
+    SipClientInt(asio::io_context& io_context, const std::string& user, const std::string& pwd, const std::string& server_ip, const std::string& server_port, const std::string& my_ip, SmlSmT& sm)
+        : m_socket(io_context, server_ip, server_port, LOCAL_PORT, [this](std::string data) {
+            rx(data);
+        })
+        , m_rtp_socket(io_context, server_ip, "7078", LOCAL_RTP_PORT, [this](std::string data) {
+            //ESP_LOGV("RTP", "Received %d byte", data.size());
+        })
         , m_server_ip(server_ip)
         , m_user(user)
         , m_pwd(pwd)
@@ -48,10 +53,10 @@ SipClientInt(asio::io_context& io_context, const std::string& user, const std::s
         , m_branch(std::rand() % 2147483647)
         , m_caller_display(m_user)
         , m_sdp_session_id(0)
-	, m_sm(sm)
-	, m_io_context(io_context)
-	, m_timer(io_context)
-	, m_command_timeout_timer(io_context)
+        , m_sm(sm)
+        , m_io_context(io_context)
+        , m_timer(io_context)
+        , m_command_timeout_timer(io_context)
     {
     }
 
@@ -64,12 +69,11 @@ SipClientInt(asio::io_context& io_context, const std::string& user, const std::s
         bool result_rtp = m_rtp_socket.init();
         bool result_sip = m_socket.init();
 
-	//TODO: remove this here, do it properly with boost::sml
-	if ( result_rtp && result_sip)
-	{
-		m_sm.process_event(ev_start {});
-	}
-
+        //TODO: remove this here, do it properly with boost::sml
+        if (result_rtp && result_sip)
+        {
+            m_sm.process_event(ev_start {});
+        }
 
         return result_rtp && result_sip;
     }
@@ -113,18 +117,18 @@ SipClientInt(asio::io_context& io_context, const std::string& user, const std::s
      */
     void request_ring(const std::string& local_number, const std::string& caller_display)
     {
-	    asio::dispatch(m_io_context, [this, local_number, caller_display](){
-			    ESP_LOGI(TAG, "Request to call %s...", local_number.c_str());
-			    this->m_sm.process_event(ev_request_call {local_number, caller_display});
-		    });
+        asio::dispatch(m_io_context, [this, local_number, caller_display]() {
+            ESP_LOGI(TAG, "Request to call %s...", local_number.c_str());
+            this->m_sm.process_event(ev_request_call { local_number, caller_display });
+        });
     }
 
     void request_cancel()
     {
-	    asio::dispatch(m_io_context, [this](){
-			    ESP_LOGI(TAG, "Request to CANCEL call");
-			    this->m_sm.process_event(ev_cancel_call {});
-		    });
+        asio::dispatch(m_io_context, [this]() {
+            ESP_LOGI(TAG, "Request to CANCEL call");
+            this->m_sm.process_event(ev_cancel_call {});
+        });
     }
 
     void deinit()
@@ -135,159 +139,152 @@ SipClientInt(asio::io_context& io_context, const std::string& user, const std::s
     //send initial register request
     void register_unauth()
     {
-	    //sending REGISTER without auth
-            m_tag = std::rand() % 2147483647;
-            m_branch = std::rand() % 2147483647;
-            send_sip_register();
-            m_tag = std::rand() % 2147483647;
-            m_branch = std::rand() % 2147483647;
+        //sending REGISTER without auth
+        m_tag = std::rand() % 2147483647;
+        m_branch = std::rand() % 2147483647;
+        send_sip_register();
+        m_tag = std::rand() % 2147483647;
+        m_branch = std::rand() % 2147483647;
     }
 
     //send  register request
     void register_auth()
     {
-	    m_sip_sequence_number++;
-	    //sending REGISTER with auth
-	    compute_auth_response("REGISTER", "sip:" + m_server_ip);
-            send_sip_register();
+        m_sip_sequence_number++;
+        //sending REGISTER with auth
+        compute_auth_response("REGISTER", "sip:" + m_server_ip);
+        send_sip_register();
     }
 
     void is_registered()
     {
-	    m_sip_sequence_number++;
-	    m_nonce = "";
-	    m_realm = "";
-	    m_response = "";
-	    ESP_LOGI(TAG, "OK :)");
-	    m_uri = "sip:**613@" + m_server_ip;
-	    m_to_uri = "sip:**613@" + m_server_ip;
+        m_sip_sequence_number++;
+        m_nonce = "";
+        m_realm = "";
+        m_response = "";
+        ESP_LOGI(TAG, "OK :)");
+        m_uri = "sip:**613@" + m_server_ip;
+        m_to_uri = "sip:**613@" + m_server_ip;
     }
 
     void send_invite(const ev_401_unauthorized& event)
     {
-	    //first ack the prev sip 401/407 packet
-	    send_sip_ack();
+        //first ack the prev sip 401/407 packet
+        send_sip_ack();
 
-	    m_sdp_session_id = std::rand();
-	    
-            // or sending INVITE with auth
-            m_branch = std::rand() % 2147483647;
-	    m_sip_sequence_number++;
-            compute_auth_response("INVITE", m_uri);
-            send_sip_invite();
+        m_sdp_session_id = std::rand();
 
+        // or sending INVITE with auth
+        m_branch = std::rand() % 2147483647;
+        m_sip_sequence_number++;
+        compute_auth_response("INVITE", m_uri);
+        send_sip_invite();
     }
 
     void send_invite(const ev_initiate_call& event)
     {
-	    //sending INVITE without auth
-            //m_tag = std::rand() % 2147483647;
-	    m_sip_sequence_number++;
-            m_sdp_session_id = std::rand();
-	    m_branch = std::rand() % 2147483647;
-            send_sip_invite();
+        //sending INVITE without auth
+        //m_tag = std::rand() % 2147483647;
+        m_sip_sequence_number++;
+        m_sdp_session_id = std::rand();
+        m_branch = std::rand() % 2147483647;
+        send_sip_invite();
     }
 
     void request_call(const ev_request_call& event)
     {
-	    ESP_LOGI(TAG, "Request to call %s...", event.local_number.c_str());
-            m_call_id = std::rand() % 2147483647;
-            m_uri = "sip:" + event.local_number + "@" + m_server_ip;
-            m_to_uri = "sip:" + event.local_number + "@" + m_server_ip;
-            m_caller_display = event.caller_display;
-	    m_sm.process_event(ev_initiate_call {});		
+        ESP_LOGI(TAG, "Request to call %s...", event.local_number.c_str());
+        m_call_id = std::rand() % 2147483647;
+        m_uri = "sip:" + event.local_number + "@" + m_server_ip;
+        m_to_uri = "sip:" + event.local_number + "@" + m_server_ip;
+        m_caller_display = event.caller_display;
+        m_sm.process_event(ev_initiate_call {});
     }
 
     void cancel_call(const ev_cancel_call& event)
     {
-	    ESP_LOGD(TAG, "Sending cancel request");
-	    send_sip_cancel();
+        ESP_LOGD(TAG, "Sending cancel request");
+        send_sip_cancel();
 
-	    //TODO: if call in progress, send bye
-	    //ESP_LOGD(TAG, "Sending bye request");
-	    //send_sip_bye();
+        //TODO: if call in progress, send bye
+        //ESP_LOGD(TAG, "Sending bye request");
+        //send_sip_bye();
     }
 
     void handle_invite(const ev_rx_invite& event)
     {
-	    //received an invite, answered it already with ok, so new call is established, because someone called us
-	    if (m_event_handler)
-	    {
-                    m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_START });
-	    }
-
+        //received an invite, answered it already with ok, so new call is established, because someone called us
+        if (m_event_handler)
+        {
+            m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_START });
+        }
     }
 
     void call_established()
     {
-	    //ack to ok after invite
-	    send_sip_ack();
-	    if (m_event_handler)
-	    {
-                    m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_START });
-	    }
+        //ack to ok after invite
+        send_sip_ack();
+        if (m_event_handler)
+        {
+            m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_START });
+        }
     }
 
     void call_cancelled()
     {
-	    if (m_event_handler)
-	    {
-                    m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_CANCELLED });
-	    }
-	    send_sip_ack();
-            m_tag = std::rand() % 2147483647;
-            m_branch = std::rand() % 2147483647;
-	    m_sip_sequence_number++;
+        if (m_event_handler)
+        {
+            m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_CANCELLED });
+        }
+        send_sip_ack();
+        m_tag = std::rand() % 2147483647;
+        m_branch = std::rand() % 2147483647;
+        m_sip_sequence_number++;
     }
 
     void call_declined(const ev_486_busy_here&)
     {
-	    if (m_event_handler)
-	    {
-                    m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_CANCELLED, ' ', 0, SipClientEvent::CancelReason::TARGET_BUSY });
-	    }
-	    
+        if (m_event_handler)
+        {
+            m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_CANCELLED, ' ', 0, SipClientEvent::CancelReason::TARGET_BUSY });
+        }
     }
 
     void call_declined(const ev_603_decline&)
     {
-	    if (m_event_handler)
-	    {
-                    m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_CANCELLED, ' ', 0, SipClientEvent::CancelReason::CALL_DECLINED });
-	    }
-	    
+        if (m_event_handler)
+        {
+            m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_CANCELLED, ' ', 0, SipClientEvent::CancelReason::CALL_DECLINED });
+        }
     }
 
     void handle_bye()
     {
-	    m_sip_sequence_number++;
-	    if (m_event_handler)
-	    {
-                    m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_END });
-	    }
+        m_sip_sequence_number++;
+        if (m_event_handler)
+        {
+            m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_END });
+        }
     }
 
     void handle_internal_server_error()
     {
-	    m_tag = std::rand() % 2147483647;
-            m_branch = std::rand() % 2147483647;
-	    m_sip_sequence_number++;
+        m_tag = std::rand() % 2147483647;
+        m_branch = std::rand() % 2147483647;
+        m_sip_sequence_number++;
 
-	    // wait for timeout and restart again
-	    m_timer.expires_after(asio::chrono::seconds(5));
-	   
-	    m_timer.async_wait([this](const asio::error_code& ec)
-			       {
-				       if (!ec)
-				       {
-					       this->m_sm.process_event(ev_start {});
-				       }
-			       });
+        // wait for timeout and restart again
+        m_timer.expires_after(asio::chrono::seconds(5));
+
+        m_timer.async_wait([this](const asio::error_code& ec) {
+            if (!ec)
+            {
+                this->m_sm.process_event(ev_start {});
+            }
+        });
     }
 
-    
 private:
-    
     void rx(std::string recv_string)
     {
         if (recv_string.empty())
@@ -302,14 +299,14 @@ private:
             return;
         }
 
-	m_command_timeout_timer.cancel();
-	
+        m_command_timeout_timer.cancel();
+
         SipPacket::Status reply = packet.get_status();
         ESP_LOGI(TAG, "Parsing the packet ok, reply code=%d", (int)packet.get_status());
 
         if (reply == SipPacket::Status::SERVER_ERROR_500)
         {
-	    m_sm.process_event(ev_500_internal_server_error {});
+            m_sm.process_event(ev_500_internal_server_error {});
             return;
         }
         else if ((reply == SipPacket::Status::UNAUTHORIZED_401) || (reply == SipPacket::Status::PROXY_AUTH_REQ_407))
@@ -317,7 +314,7 @@ private:
             m_realm = packet.get_realm();
             m_nonce = packet.get_nonce();
         }
-        else if ((reply == SipPacket::Status::UNKNOWN) && ((packet.get_method() == SipPacket::Method::NOTIFY) || (packet.get_method() == SipPacket::Method::BYE) || (packet.get_method() == SipPacket::Method::INFO) ))
+        else if ((reply == SipPacket::Status::UNKNOWN) && ((packet.get_method() == SipPacket::Method::NOTIFY) || (packet.get_method() == SipPacket::Method::BYE) || (packet.get_method() == SipPacket::Method::INFO)))
         {
             send_sip_ok(packet);
         }
@@ -332,74 +329,73 @@ private:
             m_to_tag = packet.get_to_tag();
         }
 
-	if (reply == SipPacket::Status::UNAUTHORIZED_401)
-	{
-		m_sm.process_event(ev_401_unauthorized {});
-	}
-	else if (reply == SipPacket::Status::OK_200)
-	{
-		m_sm.process_event(ev_200_ok {});
-	}
-	else if (reply == SipPacket::Status::TRYING_100)
-	{
-		m_sm.process_event(ev_100_trying {});
-	}
-	else if (reply == SipPacket::Status::SESSION_PROGRESS_183)
-	{
-		m_sm.process_event(ev_183_session_progress {});
-	}
-	else if (reply == SipPacket::Status::PROXY_AUTH_REQ_407)
-	{
-		m_sm.process_event(ev_401_unauthorized {});
-	}
-	else if (reply == SipPacket::Status::REQUEST_CANCELLED_487)
-	{
-		m_sm.process_event(ev_487_request_cancelled {});
-	}
-	else if (reply == SipPacket::Status::DECLINE_603)
-	{
-		send_sip_ack();
-                m_sip_sequence_number++;
-                m_branch = std::rand() % 2147483647;
+        if (reply == SipPacket::Status::UNAUTHORIZED_401)
+        {
+            m_sm.process_event(ev_401_unauthorized {});
+        }
+        else if (reply == SipPacket::Status::OK_200)
+        {
+            m_sm.process_event(ev_200_ok {});
+        }
+        else if (reply == SipPacket::Status::TRYING_100)
+        {
+            m_sm.process_event(ev_100_trying {});
+        }
+        else if (reply == SipPacket::Status::SESSION_PROGRESS_183)
+        {
+            m_sm.process_event(ev_183_session_progress {});
+        }
+        else if (reply == SipPacket::Status::PROXY_AUTH_REQ_407)
+        {
+            m_sm.process_event(ev_401_unauthorized {});
+        }
+        else if (reply == SipPacket::Status::REQUEST_CANCELLED_487)
+        {
+            m_sm.process_event(ev_487_request_cancelled {});
+        }
+        else if (reply == SipPacket::Status::DECLINE_603)
+        {
+            send_sip_ack();
+            m_sip_sequence_number++;
+            m_branch = std::rand() % 2147483647;
 
-		m_sm.process_event(ev_603_decline {});
-	}
-	else if (reply == SipPacket::Status::BUSY_HERE_486)
-	{
-		send_sip_ack();
-                m_sip_sequence_number++;
-                m_branch = std::rand() % 2147483647;
+            m_sm.process_event(ev_603_decline {});
+        }
+        else if (reply == SipPacket::Status::BUSY_HERE_486)
+        {
+            send_sip_ack();
+            m_sip_sequence_number++;
+            m_branch = std::rand() % 2147483647;
 
-		m_sm.process_event(ev_486_busy_here {});
-	}
-	
-	if (packet.get_method() == SipPacket::Method::BYE)
-	{
-		m_sm.process_event(ev_rx_bye {});
-	}
-	else if ((packet.get_method() == SipPacket::Method::INFO)
-		 && (packet.get_content_type() == SipPacket::ContentType::APPLICATION_DTMF_RELAY))
-	{
-                if (m_event_handler)
-                {
-			m_event_handler(SipClientEvent { SipClientEvent::Event::BUTTON_PRESS, packet.get_dtmf_signal(), packet.get_dtmf_duration() });
-                }
-	}
+            m_sm.process_event(ev_486_busy_here {});
+        }
 
-	
-	// Do not accept calls to e.g. **9 on fritzbox from self.
-	// But immediately pick up all other calls, also to **9 from other participants.
-	if ((packet.get_method() == SipPacket::Method::INVITE) && (packet.get_from().rfind(m_caller_display + "\"", 1) != 1))
-	{
-		ESP_LOGV(TAG, "Accept invite from : '%s'", packet.get_from().c_str());
-		send_sip_ok(packet);
-		m_sm.process_event(ev_rx_invite {});
-	}
-	else if (packet.get_method() == SipPacket::Method::INVITE)
-	{
-		ESP_LOGV(TAG, "Drop invite from : %s", packet.get_from().c_str());
-		send_sip_decline(packet);
-	}
+        if (packet.get_method() == SipPacket::Method::BYE)
+        {
+            m_sm.process_event(ev_rx_bye {});
+        }
+        else if ((packet.get_method() == SipPacket::Method::INFO)
+            && (packet.get_content_type() == SipPacket::ContentType::APPLICATION_DTMF_RELAY))
+        {
+            if (m_event_handler)
+            {
+                m_event_handler(SipClientEvent { SipClientEvent::Event::BUTTON_PRESS, packet.get_dtmf_signal(), packet.get_dtmf_duration() });
+            }
+        }
+
+        // Do not accept calls to e.g. **9 on fritzbox from self.
+        // But immediately pick up all other calls, also to **9 from other participants.
+        if ((packet.get_method() == SipPacket::Method::INVITE) && (packet.get_from().rfind(m_caller_display + "\"", 1) != 1))
+        {
+            ESP_LOGV(TAG, "Accept invite from : '%s'", packet.get_from().c_str());
+            send_sip_ok(packet);
+            m_sm.process_event(ev_rx_invite {});
+        }
+        else if (packet.get_method() == SipPacket::Method::INVITE)
+        {
+            ESP_LOGV(TAG, "Drop invite from : %s", packet.get_from().c_str());
+            send_sip_decline(packet);
+        }
     }
 
     void send_sip_register()
@@ -421,14 +417,13 @@ private:
         tx_buffer << "\r\n";
 
         m_socket.send_buffered_data();
-	m_command_timeout_timer.expires_after(asio::chrono::seconds(5));
-	m_command_timeout_timer.async_wait([this](const asio::error_code& ec)
-			       {
-				       if (!ec)
-				       {
-					       this->m_sm.process_event(ev_reply_timeout {});
-				       }
-			       });
+        m_command_timeout_timer.expires_after(asio::chrono::seconds(5));
+        m_command_timeout_timer.async_wait([this](const asio::error_code& ec) {
+            if (!ec)
+            {
+                this->m_sm.process_event(ev_reply_timeout {});
+            }
+        });
     }
 
     void send_sip_invite()
@@ -494,31 +489,31 @@ private:
     void send_sip_ack()
     {
         TxBufferT& tx_buffer = m_socket.get_new_tx_buf();
-	if (!m_to_contact.empty())
-	{
-		send_sip_header("ACK", m_to_contact, m_to_uri, tx_buffer);
-	}
-	else
-	{
-		send_sip_header("ACK", m_uri, m_to_uri, tx_buffer);
-	}
-	//std::string m_sdp_session_o;
-	//std::string m_sdp_session_s;
-	//std::string m_sdp_session_c;
-	//m_tx_sdp_buffer.clear();
-	//TODO: populate sdp body
-	//m_tx_sdp_buffer << "v=0\r\n"
-	//	              << m_sdp_session_o << "\r\n"
-	//	      << m_sdp_session_s << "\r\n"
-	//	      << m_sdp_session_c << "\r\n"
-	//	      << "t=0 0\r\n";
-	//TODO: copy each m line and select appropriate a line
-	//tx_buffer << "Content-Type: application/sdp\r\n";
-	//tx_buffer << "Content-Length: " << m_tx_sdp_buffer.size() << "\r\n";
-	//tx_buffer << "Allow-Events: telephone-event\r\n";
-	tx_buffer << "Content-Length: 0\r\n";
-	tx_buffer << "\r\n";
-	//tx_buffer << m_tx_sdp_buffer.data();
+        if (!m_to_contact.empty())
+        {
+            send_sip_header("ACK", m_to_contact, m_to_uri, tx_buffer);
+        }
+        else
+        {
+            send_sip_header("ACK", m_uri, m_to_uri, tx_buffer);
+        }
+        //std::string m_sdp_session_o;
+        //std::string m_sdp_session_s;
+        //std::string m_sdp_session_c;
+        //m_tx_sdp_buffer.clear();
+        //TODO: populate sdp body
+        //m_tx_sdp_buffer << "v=0\r\n"
+        //	              << m_sdp_session_o << "\r\n"
+        //	      << m_sdp_session_s << "\r\n"
+        //	      << m_sdp_session_c << "\r\n"
+        //	      << "t=0 0\r\n";
+        //TODO: copy each m line and select appropriate a line
+        //tx_buffer << "Content-Type: application/sdp\r\n";
+        //tx_buffer << "Content-Length: " << m_tx_sdp_buffer.size() << "\r\n";
+        //tx_buffer << "Allow-Events: telephone-event\r\n";
+        tx_buffer << "Content-Length: 0\r\n";
+        tx_buffer << "\r\n";
+        //tx_buffer << m_tx_sdp_buffer.data();
 
         m_socket.send_buffered_data();
     }
@@ -654,7 +649,7 @@ private:
             dest.push_back(hexits[data[i] & 0x0F]);
         }
     }
-    
+
     SocketT m_socket;
     SocketT m_rtp_socket;
     Md5T m_md5;
@@ -693,7 +688,7 @@ private:
     asio::io_context& m_io_context;
     asio::steady_timer m_timer;
     asio::steady_timer m_command_timeout_timer;
-    
+
     static constexpr const uint16_t LOCAL_PORT = 5060;
     static constexpr const char* TRANSPORT_LOWER = "udp";
     static constexpr const char* TRANSPORT_UPPER = "UDP";
