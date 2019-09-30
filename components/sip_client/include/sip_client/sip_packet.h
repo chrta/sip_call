@@ -51,7 +51,7 @@ public:
         UNKNOWN
     };
 
-    SipPacket(const char* input_buffer, size_t input_buffer_length)
+    SipPacket(char* input_buffer, size_t input_buffer_length)
         : m_buffer(input_buffer)
         , m_buffer_length(input_buffer_length)
         , m_status(Status::UNKNOWN)
@@ -157,7 +157,7 @@ public:
 private:
     bool parse_header()
     {
-        const char* start_position = m_buffer;
+        char* start_position = m_buffer;
         char* end_position = strstr(start_position, LINE_ENDING);
 
         m_method = Method::UNKNOWN;
@@ -198,7 +198,7 @@ private:
                 }
                 return true;
             }
-            const char* next_start_position = end_position + LINE_ENDING_LEN;
+            char* next_start_position = end_position + LINE_ENDING_LEN;
             line_number++;
 
             //create a proper null terminated c string
@@ -230,7 +230,7 @@ private:
             else if (strncmp(CONTACT, start_position, strlen(CONTACT)) == 0)
             {
                 ESP_LOGV(TAG, "Detect contact line");
-                const char* last_pos = strstr(start_position, ">");
+                char* last_pos = strstr(start_position, ">");
                 if (last_pos == nullptr)
                 {
                     ESP_LOGW(TAG, "Failed to read content of contact line");
@@ -309,7 +309,7 @@ private:
             return true;
         }
 
-        const char* start_position = m_body;
+        char* start_position = m_body;
         char* end_position = strstr(start_position, LINE_ENDING);
 
         if (end_position == nullptr)
@@ -326,7 +326,7 @@ private:
                 return true;
             }
 
-            const char* next_start_position = end_position + LINE_ENDING_LEN;
+            char* next_start_position = end_position + LINE_ENDING_LEN;
 
             //create a proper null terminated c string
             //from here on string functions may be used!
@@ -441,7 +441,7 @@ private:
         return ContentType::UNKNOWN;
     }
 
-    const char* m_buffer;
+    char* m_buffer;
     const size_t m_buffer_length;
 
     Status m_status;
@@ -461,7 +461,7 @@ private:
     std::string m_p_called_party_id;
     char m_dtmf_signal;
     uint16_t m_dtmf_duration;
-    const char* m_body;
+    char* m_body;
 
     static constexpr const char* LINE_ENDING = "\r\n";
     static constexpr size_t LINE_ENDING_LEN = 2;
