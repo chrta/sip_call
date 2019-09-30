@@ -59,22 +59,27 @@ struct sip_states
         };
 
         const auto action_call_established = [](SipClientT& sip, const auto& event) {
+            (void) event;
             sip.call_established();
         };
 
         const auto action_call_cancelled = [](SipClientT& sip, const auto& event) {
+            (void) event;
             sip.call_cancelled();
         };
 
         const auto action_call_declined = [](SipClientT& sip, const auto& event) {
+            (void) event;
             sip.call_declined(event);
         };
 
         const auto action_rx_bye = [](SipClientT& sip, const auto& event) {
+            (void) event;
             sip.handle_bye();
         };
 
         const auto action_rx_internal_server_error = [](SipClientT& sip, const auto& event) {
+            (void) event;
             sip.handle_internal_server_error();
         };
 

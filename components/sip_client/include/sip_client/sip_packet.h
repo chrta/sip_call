@@ -193,7 +193,7 @@ private:
         uint32_t line_number = 0;
         do
         {
-            size_t length = end_position - start_position;
+            size_t length = static_cast<size_t>(end_position - start_position);
             if (length == 0) //line only contains the line ending
             {
                 ESP_LOGV(TAG, "Valid end of header detected");
@@ -286,14 +286,14 @@ private:
             }
             else if (strstr(start_position, CONTENT_LENGTH) == start_position)
             {
-                long length = strtol(start_position + strlen(CONTENT_LENGTH), nullptr, 10);
-                if (length < 0)
+                long content_length = strtol(start_position + strlen(CONTENT_LENGTH), nullptr, 10);
+                if (content_length < 0)
                 {
-                    ESP_LOGW(TAG, "Invalid content length %ld", length);
+                    ESP_LOGW(TAG, "Invalid content length %ld", content_length);
                 }
                 else
                 {
-                    m_content_length = length;
+                    m_content_length = content_length;
                 }
             }
 
@@ -330,7 +330,7 @@ private:
 
         do
         {
-            size_t length = end_position - start_position;
+            size_t length = static_cast<size_t>(end_position - start_position);
             if (length == 0) //line only contains the line ending
             {
                 return true;
@@ -403,7 +403,7 @@ private:
         return true;
     }
 
-    Status convert_status(uint32_t code) const
+    Status convert_status(long code) const
     {
         switch (code)
         {

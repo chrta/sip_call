@@ -20,7 +20,7 @@
 #include "sip_client/mbedtls_md5.h"
 #include "sip_client/sip_client.h"
 
-#include <string.h>
+#include <cstring>
 
 #define CONFIG_RING_DURATION (7000)
 #define CONFIG_SIP_USER "620"
@@ -28,8 +28,6 @@
 #define CONFIG_SIP_SERVER_IP "192.168.179.1"
 #define CONFIG_SIP_SERVER_PORT "5060"
 #define CONFIG_LOCAL_IP "192.168.170.30"
-
-static constexpr auto RING_DURATION_TIMEOUT_MSEC = CONFIG_RING_DURATION;
 
 static const char* TAG = "main";
 
@@ -41,9 +39,11 @@ struct handlers_t
     asio::io_context& io_context;
 };
 
-static void sip_task(void* pvParameters)
+static void sip_task(void* pvParameters) __attribute__((noreturn));
+
+void sip_task(void* pvParameters)
 {
-    handlers_t* handlers = static_cast<handlers_t*>(pvParameters);
+    auto* handlers = static_cast<handlers_t*>(pvParameters);
     SipClientT& client = handlers->client;
 
     for (;;)
@@ -81,7 +81,7 @@ static void sip_task(void* pvParameters)
     }
 }
 
-int main(int argc, char* argv[])
+int main(int, char**)
 {
     // seed for std::rand() used in the sip client
     std::srand(time(nullptr));

@@ -35,8 +35,7 @@ public:
         : m_socket(io_context, server_ip, server_port, LOCAL_PORT, [this](std::string data) {
             rx(data);
         })
-        , m_rtp_socket(io_context, server_ip, "7078", LOCAL_RTP_PORT, [this](std::string data) {
-            //ESP_LOGV("RTP", "Received %d byte", data.size());
+        , m_rtp_socket(io_context, server_ip, "7078", LOCAL_RTP_PORT, [](std::string) {
         })
         , m_server_ip(server_ip)
         , m_user(user)
@@ -167,12 +166,12 @@ public:
         m_to_uri = "sip:**613@" + m_server_ip;
     }
 
-    void send_invite(const ev_401_unauthorized& event)
+    void send_invite(const ev_401_unauthorized&)
     {
         //first ack the prev sip 401/407 packet
         send_sip_ack();
 
-        m_sdp_session_id = std::rand();
+        m_sdp_session_id = static_cast<uint32_t>(std::rand());
 
         // or sending INVITE with auth
         m_branch = std::rand() % 2147483647;
@@ -181,12 +180,10 @@ public:
         send_sip_invite();
     }
 
-    void send_invite(const ev_initiate_call& event)
+    void send_invite(const ev_initiate_call&)
     {
-        //sending INVITE without auth
-        //m_tag = std::rand() % 2147483647;
         m_sip_sequence_number++;
-        m_sdp_session_id = std::rand();
+        m_sdp_session_id = static_cast<uint32_t>(std::rand());
         m_branch = std::rand() % 2147483647;
         send_sip_invite();
     }
@@ -201,7 +198,7 @@ public:
         m_sm.process_event(ev_initiate_call {});
     }
 
-    void cancel_call(const ev_cancel_call& event)
+    void cancel_call(const ev_cancel_call&)
     {
         ESP_LOGD(TAG, "Sending cancel request");
         send_sip_cancel();
@@ -211,7 +208,7 @@ public:
         //send_sip_bye();
     }
 
-    void handle_invite(const ev_rx_invite& event)
+    void handle_invite(const ev_rx_invite&)
     {
         //received an invite, answered it already with ok, so new call is established, because someone called us
         if (m_event_handler)
@@ -637,7 +634,7 @@ private:
         ESP_LOGV(TAG, "Hex response is %s", m_response.c_str());
     }
 
-    void to_hex(std::string& dest, const unsigned char* data, int len)
+    void to_hex(std::string& dest, const unsigned char* data, uint8_t len)
     {
         static const char hexits[17] = "0123456789abcdef";
 
