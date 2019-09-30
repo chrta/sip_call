@@ -31,3 +31,9 @@ add_compile_definitions(COMPILE_FOR_NATIVE)
 add_executable(sip-client ${SOURCES})
 
 target_link_libraries(sip-client mbedcrypto ${CMAKE_THREAD_LIBS_INIT})
+
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+  target_compile_options(sip-client PRIVATE -Wall -Wextra -Weverything -pedantic -Wno-c++98-compat -Wno-format-nonliteral -Wno-gnu-zero-variadic-macro-arguments -Wno-c++98-compat-pedantic)
+else()
+  target_compile_options(sip-client PRIVATE -Wall -Wextra -pedantic -Werror)
+endif()
