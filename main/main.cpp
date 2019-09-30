@@ -65,11 +65,13 @@ static std::string ip_to_string(const ip4_addr_t* ip)
     return std::string(buffer);
 }
 
+#ifdef CONFIG_SIP_SERVER_IS_DHCP_SERVER
 static std::string get_gw_ip_address(const system_event_sta_got_ip_t* got_ip)
 {
     const ip4_addr_t* gateway = &got_ip->ip_info.gw;
     return ip_to_string(gateway);
 }
+#endif //CONFIG_SIP_SERVER_IS_DHCP_SERVER
 
 static std::string get_local_ip_address(const ip4_addr_t* got_ip)
 {
@@ -98,7 +100,9 @@ static void event_handler(void* arg, esp_event_base_t event_base,
         ESP_LOGI(TAG, "got ip:%s",
             ip4addr_ntoa(&event->ip_info.ip));
         ip4_addr_t* got_ip = &event->ip_info.ip;
-        //client.set_server_ip(get_gw_ip_address(got_ip));
+#ifdef CONFIG_SIP_SERVER_IS_DHCP_SERVER
+        client.set_server_ip(get_gw_ip_address(got_ip));
+#endif //CONFIG_SIP_SERVER_IS_DHCP_SERVER
         client->set_my_ip(get_local_ip_address(got_ip));
         xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
     }

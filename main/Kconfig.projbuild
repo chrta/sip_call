@@ -44,15 +44,29 @@ config RING_DURATION
 		In reality, this phone rings for a shorter duration, because there is a delay, between
 		the SIP ring request, the ACK from the SIP server and the actual ringing of the phone.
 
+choice
+	prompt "SIP Server Address"
+
+config SIP_SERVER_IS_GATEWAY_IP
+       bool "The SIP server is running on the default gateway"
+       help
+		This is the case if you have a default setup where
+		the router also contains the SIP server, e.g. a FritzBox.
+
+		If this option is activated, the default gateway address that
+		is sent from the dhcp server to this esp32 is used as the SIP
+		server ip address.       
+       
+config SIP_SERVER_FIXED_IP
+       bool "The SIP server has a fixed IP address"
+
+endchoice
+
 config SIP_SERVER_IP
-    string "SIP Server IP"
+    string "SIP Server IP" if SIP_SERVER_FIXED_IP
         default "192.168.179.1"
         help
                 SIP Server IP to connect to.
-
-		This is overwritten with the gateway address from the DHCP server.	
-
-                See README.md for details.
 
 config SIP_SERVER_PORT
         string "SIP Server Port"
