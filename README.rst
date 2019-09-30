@@ -27,13 +27,12 @@ Please check ESP-IDF docs for getting started instructions.
 Building
 ++++++++
 
-The project now uses cmake, so after initializing your environment with the relevant variables from esp-idf you can use idf.py to build, flash etc:
+The project now uses cmake, so after initializing your environment with the relevant variables from esp-idf you can use idf.py to build, flash etc::
 
-::
-   cd <this project's root dir>
-   idf.py menuconfig
-   idf.py build
-   idf.py build monitor
+  cd <this project's root dir>
+  idf.py menuconfig
+  idf.py build
+  idf.py build monitor
 
 To build this project for the pc (linux, tested with ubuntu 18.04), a sample (not all features are supported, yet)::
 
