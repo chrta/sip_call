@@ -19,7 +19,7 @@ Programming
 
 The source code is mixed C and C++. A transition to boost:sml is in progress.
 
-This application is to be used with `Espressif IoT Development Framework`_ (ESP-IDF). It is tested with revision 96b96ae244f360c84b71c8c3670e24a1186e9844
+This application is to be used with `Espressif IoT Development Framework`_ (ESP-IDF). It is tested with revision 93a8603c545fb8e54741d6685146e2f3b874378d
 
 Please check ESP-IDF docs for getting started instructions.
 

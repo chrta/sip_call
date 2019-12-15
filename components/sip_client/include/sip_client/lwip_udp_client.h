@@ -97,7 +97,7 @@ public:
     TcpIpAdapterInitializer()
     {
 #ifndef COMPILE_FOR_NATIVE
-        tcpip_adapter_init();
+        ESP_ERROR_CHECK(esp_netif_init());
 #endif
     }
 };

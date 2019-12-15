@@ -19,9 +19,14 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 
-#include "esp_event.h"
+extern "C" {
+#include "esp_netif.h"
+#include "esp_wifi_default.h"
+}
+
 #include "esp_system.h"
 #include "esp_wifi.h"
+#include "esp_event.h"
 #include "nvs_flash.h"
 
 #include "sip_client/lwip_udp_client.h"
@@ -57,7 +62,7 @@ static const char* TAG = "main";
 
 using SipClientT = SipClient<AsioUdpClient, MbedtlsMd5>;
 
-static std::string ip_to_string(const ip4_addr_t* ip)
+static std::string ip_to_string(const esp_ip4_addr_t* ip)
 {
     static constexpr size_t BUFFER_SIZE = 16;
     char buffer[BUFFER_SIZE];
@@ -73,7 +78,7 @@ static std::string get_gw_ip_address(const system_event_sta_got_ip_t* got_ip)
 }
 #endif //CONFIG_SIP_SERVER_IS_DHCP_SERVER
 
-static std::string get_local_ip_address(const ip4_addr_t* got_ip)
+static std::string get_local_ip_address(const esp_ip4_addr_t* got_ip)
 {
     return ip_to_string(got_ip);
 }
@@ -97,11 +102,10 @@ static void event_handler(void* arg, esp_event_base_t event_base,
     else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP)
     {
         ip_event_got_ip_t* event = (ip_event_got_ip_t*)event_data;
-        ESP_LOGI(TAG, "got ip:%s",
-            ip4addr_ntoa(&event->ip_info.ip));
-        ip4_addr_t* got_ip = &event->ip_info.ip;
+        ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
+        esp_ip4_addr_t* got_ip = &event->ip_info.ip;
 #ifdef CONFIG_SIP_SERVER_IS_DHCP_SERVER
-        client.set_server_ip(get_gw_ip_address(got_ip));
+        client->set_server_ip(get_gw_ip_address(got_ip));
 #endif //CONFIG_SIP_SERVER_IS_DHCP_SERVER
         client->set_my_ip(get_local_ip_address(got_ip));
         xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
@@ -110,9 +114,10 @@ static void event_handler(void* arg, esp_event_base_t event_base,
 
 static void initialize_wifi()
 {
-    tcpip_adapter_init();
+    ESP_ERROR_CHECK(esp_netif_init());
     wifi_event_group = xEventGroupCreate();
     ESP_ERROR_CHECK(esp_event_loop_create_default());
+    esp_netif_create_default_wifi_sta();
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
