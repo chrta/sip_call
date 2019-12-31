@@ -17,6 +17,7 @@
 #pragma once
 
 #include "esp_log.h"
+#include <array>
 #include <cstring>
 
 class SipPacket
@@ -50,6 +51,8 @@ public:
         APPLICATION_DTMF_RELAY,
         UNKNOWN
     };
+
+    using ViaT = std::array<std::string, 5>;
 
     SipPacket(char* input_buffer, size_t input_buffer_length)
         : m_buffer(input_buffer)
@@ -139,7 +142,7 @@ public:
         return m_from;
     }
 
-    std::string get_via() const
+    const ViaT& get_via() const
     {
         return m_via;
     }
@@ -182,7 +185,7 @@ private:
         m_call_id = "";
         m_to = "";
         m_from = "";
-        m_via = "";
+        m_via.fill("");
         m_p_called_party_id = "";
         m_dtmf_signal = ' ';
         m_dtmf_duration = 0;
@@ -294,7 +297,7 @@ private:
             }
             else if (strstr(start_position, VIA) == start_position)
             {
-                m_via = std::string(start_position + strlen(VIA));
+                append_via(std::string(start_position + strlen(VIA)));
             }
             else if (strstr(start_position, C_SEQ) == start_position)
             {
@@ -487,6 +490,18 @@ private:
         return ContentType::UNKNOWN;
     }
 
+    void append_via(const std::string& via)
+    {
+        for (auto& v : m_via)
+        {
+            if (v.empty())
+            {
+                v = via;
+                return;
+            }
+        }
+    }
+
     char* m_buffer;
     const size_t m_buffer_length;
 
@@ -504,7 +519,7 @@ private:
     std::string m_call_id;
     std::string m_to;
     std::string m_from;
-    std::string m_via;
+    ViaT m_via;
     std::string m_p_called_party_id;
     std::string m_media;
     std::string m_cip;

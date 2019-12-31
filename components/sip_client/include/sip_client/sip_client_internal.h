@@ -599,7 +599,16 @@ private:
 
         stream << "To: " << packet.get_to() << "\r\n";
         stream << "From: " << packet.get_from() << "\r\n";
-        stream << "Via: " << packet.get_via() << "\r\n";
+
+        for (auto v : packet.get_via())
+        {
+            if (v.empty())
+            {
+                break;
+            }
+            stream << "Via: " << v << "\r\n";
+        }
+
         stream << "CSeq: " << packet.get_cseq() << "\r\n";
         stream << "Call-ID: " << packet.get_call_id() << "\r\n";
         stream << "Max-Forwards: 70\r\n";
