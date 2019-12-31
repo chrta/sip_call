@@ -48,6 +48,7 @@ public:
         , m_response("")
         , m_realm("")
         , m_nonce("")
+        , m_proxy_auth(false)
         , m_tag(std::rand() % 2147483647)
         , m_branch(std::rand() % 2147483647)
         , m_caller_display(m_user)
@@ -178,6 +179,7 @@ public:
         m_sip_sequence_number++;
         m_nonce = "";
         m_realm = "";
+        m_proxy_auth = false;
         m_response = "";
         ESP_LOGI(TAG, "OK :)");
         m_uri = "sip:**613@" + m_server_ip;
@@ -328,6 +330,7 @@ private:
         {
             m_realm = packet.get_realm();
             m_nonce = packet.get_nonce();
+            m_proxy_auth = (reply == SipPacket::Status::PROXY_AUTH_REQ_407);
         }
         else if ((reply == SipPacket::Status::UNKNOWN) && ((packet.get_method() == SipPacket::Method::NOTIFY) || (packet.get_method() == SipPacket::Method::BYE) || (packet.get_method() == SipPacket::Method::INFO)))
         {
@@ -451,7 +454,10 @@ private:
 
         if (!m_response.empty())
         {
-            //tx_buffer << "Proxy-Authorization: Digest username=\"" << m_user << "\", realm=\"" << m_realm << "\", nonce=\"" << m_nonce << "\", uri=\"" << m_uri << "\", response=\"" << m_response << "\"\r\n";
+            if (m_proxy_auth)
+            {
+                tx_buffer << "Proxy-";
+            }
             tx_buffer << "Authorization: Digest username=\"" << m_user << "\", realm=\"" << m_realm << "\", nonce=\"" << m_nonce << "\", uri=\"" << m_uri << "\", response=\"" << m_response << "\"\r\n";
         }
         tx_buffer << "Content-Type: application/sdp\r\n";
@@ -686,6 +692,7 @@ private:
     std::string m_response;
     std::string m_realm;
     std::string m_nonce;
+    bool m_proxy_auth;
 
     uint32_t m_tag;
     uint32_t m_branch;
