@@ -600,6 +600,15 @@ private:
         stream << "To: " << packet.get_to() << "\r\n";
         stream << "From: " << packet.get_from() << "\r\n";
 
+        for (auto rr : packet.get_record_route())
+        {
+            if (rr.empty())
+            {
+                break;
+            }
+            stream << "Record-Route: " << rr << "\r\n";
+        }
+
         for (auto v : packet.get_via())
         {
             if (v.empty())
