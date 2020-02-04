@@ -27,9 +27,13 @@ static constexpr const int RX_BUFFER_SIZE = 2048;
 static constexpr const int TX_BUFFER_SIZE = 2048;
 
 #ifndef COMPILE_FOR_NATIVE
-//Workaround for asio esp-idf issue
-//https://github.com/espressif/esp-idf/issues/3557
-char* if_indextoname(unsigned int, char*) { return 0; }
+/* Workaround for asio esp-idf issue
+ * https://github.com/espressif/esp-idf/issues/3557
+ * This is already fixed in commit
+ * https://github.com/espressif/esp-idf/commit/b7ef7feaebf9ad3f532c088ea3bc77021c34a69c
+ * but leave this in to enable usage with older esp-idf.
+ */
+__attribute__((weak)) char* if_indextoname(unsigned int, char*) { return 0; }
 #endif
 
 template <std::size_t SIZE>
