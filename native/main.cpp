@@ -16,7 +16,7 @@
 
 #include "asio.hpp"
 
-#include "sip_client/lwip_udp_client.h"
+#include "sip_client/asio_udp_client.h"
 #include "sip_client/mbedtls_md5.h"
 #include "sip_client/sip_client.h"
 

@@ -29,7 +29,7 @@ extern "C" {
 #include "esp_event.h"
 #include "nvs_flash.h"
 
-#include "sip_client/lwip_udp_client.h"
+#include "sip_client/asio_udp_client.h"
 #include "sip_client/mbedtls_md5.h"
 #include "sip_client/sip_client.h"
 
