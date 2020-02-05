@@ -34,12 +34,22 @@ extern "C" {
 #include "sip_client/sip_client.h"
 
 #include "button_handler.h"
+#include "actuator_handler.h"
 
 #include <string.h>
 
 static constexpr auto BELL_GPIO_PIN = static_cast<gpio_num_t>(CONFIG_BELL_INPUT_GPIO);
-// GPIO_NUM_23 is connected to the opto coupler
 static constexpr auto RING_DURATION_TIMEOUT_MSEC = CONFIG_RING_DURATION;
+
+static constexpr auto ACTUATOR_GPIO_PIN = static_cast<gpio_num_t>(CONFIG_ACTUATOR_OUTPUT_GPIO);
+static constexpr auto ACTUATOR_DURATION_TIMEOUT_MSEC = CONFIG_ACTUATOR_SWITCHING_DURATION;
+static constexpr auto ACTUATOR_PHONE_BUTTON = CONFIG_ACTUATOR_PHONE_BUTTON;
+
+#if CONFIG_ACTUATOR_ACTIVE_HIGH
+static constexpr bool ACTUATOR_ACTIVE_HIGH = false;
+#elif
+static constexpr bool ACTUATOR_ACTIVE_HIGH = true;
+#endif /*CONFIG_ACTUATOR_ACTIVE_HIGH*/
 
 #if CONFIG_POWER_SAVE_MODEM_MAX
 #define DEFAULT_PS_MODE WIFI_PS_MAX_MODEM
@@ -144,6 +154,7 @@ struct handlers_t
 {
     SipClientT& client;
     ButtonInputHandler<SipClientT, BELL_GPIO_PIN, RING_DURATION_TIMEOUT_MSEC>& button_input_handler;
+	ActuatorHandler<ACTUATOR_GPIO_PIN, false, ACTUATOR_DURATION_TIMEOUT_MSEC>& actuator_handler;
     asio::io_context& io_context;
 };
 
@@ -152,6 +163,7 @@ static void sip_task(void* pvParameters)
     handlers_t* handlers = static_cast<handlers_t*>(pvParameters);
     SipClientT& client = handlers->client;
     ButtonInputHandler<SipClientT, BELL_GPIO_PIN, RING_DURATION_TIMEOUT_MSEC>& button_input_handler = handlers->button_input_handler;
+	ActuatorHandler<ACTUATOR_GPIO_PIN, ACTUATOR_ACTIVE_HIGH, ACTUATOR_DURATION_TIMEOUT_MSEC>& actuator_handler = handlers->actuator_handler;
 
     for (;;)
     {
@@ -168,7 +180,7 @@ static void sip_task(void* pvParameters)
                 vTaskDelay(2000 / portTICK_RATE_MS);
                 continue;
             }
-            client.set_event_handler([&button_input_handler](const SipClientEvent& event) {
+            client.set_event_handler([&button_input_handler, &actuator_handler](const SipClientEvent& event) {
                 switch (event.event)
                 {
                 case SipClientEvent::Event::CALL_START:
@@ -184,6 +196,9 @@ static void sip_task(void* pvParameters)
                     break;
                 case SipClientEvent::Event::BUTTON_PRESS:
                     ESP_LOGI(TAG, "Got button press: %c for %d milliseconds", event.button_signal, event.button_duration);
+                    
+                    if(event.button_signal == ACTUATOR_PHONE_BUTTON[0])
+                        actuator_handler.trigger();
                     break;
                 }
             });
@@ -208,8 +223,9 @@ extern "C" void app_main(void)
 
     SipClientT client { io_context, CONFIG_SIP_USER, CONFIG_SIP_PASSWORD, CONFIG_SIP_SERVER_IP, CONFIG_SIP_SERVER_PORT, CONFIG_LOCAL_IP };
     ButtonInputHandler<SipClientT, BELL_GPIO_PIN, RING_DURATION_TIMEOUT_MSEC> button_input_handler(client);
+	ActuatorHandler<ACTUATOR_GPIO_PIN, ACTUATOR_ACTIVE_HIGH, ACTUATOR_DURATION_TIMEOUT_MSEC> actuator_handler;
 
-    handlers_t handlers { client, button_input_handler, io_context };
+    handlers_t handlers { client, button_input_handler, actuator_handler, io_context };
 
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, &client));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, &client));

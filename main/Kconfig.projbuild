@@ -43,6 +43,35 @@ config RING_DURATION
                 This is the maximum duration, the called phone rings.
 		In reality, this phone rings for a shorter duration, because there is a delay, between
 		the SIP ring request, the ACK from the SIP server and the actual ringing of the phone.
+        
+config ACTUATOR_OUTPUT_GPIO
+    int "Actuator output GPIO number"
+        range 0 34
+        default 13
+        help
+            GPIO number (IOxx) to trigger the actuator for e.g. a door opener
+            GPIOs 35-39 are input-only so cannot be used as outputs.
+
+config ACTUATOR_ACTIVE_HIGH
+    bool "Actuator output active high type"
+        default y
+        help
+            This is about the hardware configuration of your setup. Active high (true) means the actuator is set to true/high when it is triggered.
+            Active low (false) means the actuator is set to false/low when it is triggered.
+
+config ACTUATOR_SWITCHING_DURATION
+    int "Actuator switching duration in milliseconds"
+        range 500 10000
+        default 3000
+        help
+            This is the duration, the actuator is activated.
+
+config ACTUATOR_PHONE_BUTTON
+    string "Actuator phone button character"
+        default "#"
+        help
+            This is a single character which can be pressed to activated the actuator during the call.
+            Note: Currently only one character can be used.
 
 choice
 	prompt "SIP Server Address"
@@ -57,6 +86,15 @@ config SIP_SERVER_IS_GATEWAY_IP
 		is sent from the dhcp server to this esp32 is used as the SIP
 		server ip address.       
        
+    bool "The SIP server is running on the default gateway"
+    help
+        This is the case if you have a default setup where
+        the router also contains the SIP server, e.g. a FritzBox.
+
+        If this option is activated, the default gateway address that
+        is sent from the dhcp server to this esp32 is used as the SIP
+        server ip address.       
+
 config SIP_SERVER_FIXED_IP
        bool "The SIP server has a fixed IP address"
 
