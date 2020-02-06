@@ -41,14 +41,22 @@ extern "C" {
 static constexpr auto BELL_GPIO_PIN = static_cast<gpio_num_t>(CONFIG_BELL_INPUT_GPIO);
 static constexpr auto RING_DURATION_TIMEOUT_MSEC = CONFIG_RING_DURATION;
 
-static constexpr auto ACTUATOR_GPIO_PIN = static_cast<gpio_num_t>(CONFIG_ACTUATOR_OUTPUT_GPIO);
-static constexpr auto ACTUATOR_DURATION_TIMEOUT_MSEC = CONFIG_ACTUATOR_SWITCHING_DURATION;
-static constexpr auto ACTUATOR_PHONE_BUTTON = CONFIG_ACTUATOR_PHONE_BUTTON;
 
+#if CONFIG_ACTUATOR_ENABLED
+    static constexpr bool ACTUATOR_ENABLED = true;
+    static constexpr auto ACTUATOR_GPIO_PIN = static_cast<gpio_num_t>(CONFIG_ACTUATOR_OUTPUT_GPIO);
+    static constexpr auto ACTUATOR_DURATION_TIMEOUT_MSEC = CONFIG_ACTUATOR_SWITCHING_DURATION;
+    static constexpr auto ACTUATOR_PHONE_BUTTON = CONFIG_ACTUATOR_PHONE_BUTTON;
+#else
+    static constexpr bool ACTUATOR_ENABLED = false;
+    static constexpr auto ACTUATOR_GPIO_PIN = static_cast<gpio_num_t>(0);
+    static constexpr auto ACTUATOR_DURATION_TIMEOUT_MSEC = 0;
+    static constexpr auto ACTUATOR_PHONE_BUTTON = "0";
+#endif /*CONFIG_ACTUATOR_ENABLED*/
 #if CONFIG_ACTUATOR_ACTIVE_HIGH
-static constexpr bool ACTUATOR_ACTIVE_HIGH = false;
-#elif
-static constexpr bool ACTUATOR_ACTIVE_HIGH = true;
+    static constexpr bool ACTUATOR_ACTIVE_HIGH = true;
+#else
+    static constexpr bool ACTUATOR_ACTIVE_HIGH = false;
 #endif /*CONFIG_ACTUATOR_ACTIVE_HIGH*/
 
 #if CONFIG_POWER_SAVE_MODEM_MAX
@@ -154,7 +162,7 @@ struct handlers_t
 {
     SipClientT& client;
     ButtonInputHandler<SipClientT, BELL_GPIO_PIN, RING_DURATION_TIMEOUT_MSEC>& button_input_handler;
-	ActuatorHandler<ACTUATOR_GPIO_PIN, false, ACTUATOR_DURATION_TIMEOUT_MSEC>& actuator_handler;
+	ActuatorHandler<ACTUATOR_GPIO_PIN, ACTUATOR_ACTIVE_HIGH, ACTUATOR_DURATION_TIMEOUT_MSEC>& actuator_handler;
     asio::io_context& io_context;
 };
 
@@ -223,7 +231,7 @@ extern "C" void app_main(void)
 
     SipClientT client { io_context, CONFIG_SIP_USER, CONFIG_SIP_PASSWORD, CONFIG_SIP_SERVER_IP, CONFIG_SIP_SERVER_PORT, CONFIG_LOCAL_IP };
     ButtonInputHandler<SipClientT, BELL_GPIO_PIN, RING_DURATION_TIMEOUT_MSEC> button_input_handler(client);
-	ActuatorHandler<ACTUATOR_GPIO_PIN, ACTUATOR_ACTIVE_HIGH, ACTUATOR_DURATION_TIMEOUT_MSEC> actuator_handler;
+	ActuatorHandler<ACTUATOR_GPIO_PIN, ACTUATOR_ACTIVE_HIGH, ACTUATOR_DURATION_TIMEOUT_MSEC> actuator_handler(ACTUATOR_ENABLED);
 
     handlers_t handlers { client, button_input_handler, actuator_handler, io_context };
 

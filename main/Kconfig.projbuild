@@ -44,8 +44,15 @@ config RING_DURATION
 		In reality, this phone rings for a shorter duration, because there is a delay, between
 		the SIP ring request, the ACK from the SIP server and the actual ringing of the phone.
         
+config ACTUATOR_ENABLED
+    bool "Actuator enabled"
+        default n
+        help
+            An Actuator can be enabled to trigger a gpio when a button is pressed during the call.
+
 config ACTUATOR_OUTPUT_GPIO
     int "Actuator output GPIO number"
+    depends on ACTUATOR_ENABLED
         range 0 34
         default 13
         help
@@ -54,6 +61,7 @@ config ACTUATOR_OUTPUT_GPIO
 
 config ACTUATOR_ACTIVE_HIGH
     bool "Actuator output active high type"
+    depends on ACTUATOR_ENABLED
         default y
         help
             This is about the hardware configuration of your setup. Active high (true) means the actuator is set to true/high when it is triggered.
@@ -61,6 +69,7 @@ config ACTUATOR_ACTIVE_HIGH
 
 config ACTUATOR_SWITCHING_DURATION
     int "Actuator switching duration in milliseconds"
+    depends on ACTUATOR_ENABLED
         range 500 10000
         default 3000
         help
@@ -68,6 +77,7 @@ config ACTUATOR_SWITCHING_DURATION
 
 config ACTUATOR_PHONE_BUTTON
     string "Actuator phone button character"
+    depends on ACTUATOR_ENABLED
         default "#"
         help
             This is a single character which can be pressed to activated the actuator during the call.
@@ -77,15 +87,6 @@ choice
 	prompt "SIP Server Address"
 
 config SIP_SERVER_IS_GATEWAY_IP
-       bool "The SIP server is running on the default gateway"
-       help
-		This is the case if you have a default setup where
-		the router also contains the SIP server, e.g. a FritzBox.
-
-		If this option is activated, the default gateway address that
-		is sent from the dhcp server to this esp32 is used as the SIP
-		server ip address.       
-       
     bool "The SIP server is running on the default gateway"
     help
         This is the case if you have a default setup where

@@ -16,21 +16,17 @@
 
 #pragma once
 
-#include "freertos/FreeRTOS.h"
-#include <freertos/queue.h>
-#include <freertos/timers.h>
-
-#include <boost/sml.hpp>
-
-#include "driver/gpio.h"
-
-
 template <gpio_num_t GPIO_PIN, bool ACTIVE_HIGH, int SWITCHING_DURATION_TIMEOUT_MSEC>
 class ActuatorHandler
 {
 public:
-	explicit ActuatorHandler()
+	explicit ActuatorHandler(bool enabled)
 	{
+        //Note: enabled-flag is only required because of current design. Future design modification could make this obsolete.
+        m_enabled = enabled;
+        if(!m_enabled)
+            return;
+        
 		gpio_config_t io_conf;
 		
 		io_conf.intr_type = GPIO_INTR_DISABLE;
@@ -55,6 +51,9 @@ public:
 	
 	void trigger()
 	{
+        if(!m_enabled)
+            return;
+        
 		gpio_set_level(GPIO_PIN, ACTIVE_HIGH);
 		ESP_LOGI(TAG, "Actuator triggered.");
         
@@ -69,7 +68,8 @@ public:
 	}
 private:
 	TimerHandle_t m_timer;
-	
+	bool m_enabled;
+    
 	static void int_callback( TimerHandle_t timer )
 	{
 		assert(timer);
