@@ -87,15 +87,15 @@ choice
 	prompt "SIP Server Address"
 
 config SIP_SERVER_IS_GATEWAY_IP
-    bool "The SIP server is running on the default gateway"
-    help
-        This is the case if you have a default setup where
-        the router also contains the SIP server, e.g. a FritzBox.
+       bool "The SIP server is running on the default gateway"
+       help
+		This is the case if you have a default setup where
+		the router also contains the SIP server, e.g. a FritzBox.
 
-        If this option is activated, the default gateway address that
-        is sent from the dhcp server to this esp32 is used as the SIP
-        server ip address.       
-
+		If this option is activated, the default gateway address that
+		is sent from the dhcp server to this esp32 is used as the SIP
+		server ip address.       
+       
 config SIP_SERVER_FIXED_IP
        bool "The SIP server has a fixed IP address"
 
