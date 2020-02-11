@@ -293,7 +293,7 @@ private:
                 }
                 else
                 {
-                    m_content_length = content_length;
+                    m_content_length = static_cast<uint32_t>(content_length);
                 }
             }
 
@@ -356,7 +356,7 @@ private:
                 }
                 else
                 {
-                    m_dtmf_duration = duration;
+                    m_dtmf_duration = static_cast<uint16_t>(duration);
                 }
             }
             else if (strstr(start_position, MEDIA) == start_position)
@@ -477,12 +477,13 @@ private:
     std::string m_from;
     std::string m_via;
     std::string m_p_called_party_id;
-    char m_dtmf_signal;
-    uint16_t m_dtmf_duration;
     std::string m_media;
     std::string m_cip;
 
     char* m_body;
+
+    uint16_t m_dtmf_duration;
+    char m_dtmf_signal;
 
     static constexpr const char* LINE_ENDING = "\r\n";
     static constexpr size_t LINE_ENDING_LEN = 2;

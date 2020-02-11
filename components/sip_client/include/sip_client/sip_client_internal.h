@@ -299,7 +299,7 @@ private:
         m_command_timeout_timer.cancel();
 
         SipPacket::Status reply = packet.get_status();
-        ESP_LOGI(TAG, "Parsing the packet ok, reply code=%d", (int)packet.get_status());
+        ESP_LOGI(TAG, "Parsing the packet ok, reply code=%d", static_cast<int>(packet.get_status()));
 
         if (reply == SipPacket::Status::SERVER_ERROR_500)
         {
@@ -445,7 +445,7 @@ private:
                         << "c=IN IP4 " << m_my_ip << "\r\n"
                         << "t=0 0\r\n"
                         << "m=audio " << LOCAL_RTP_PORT << " RTP/AVP 0 8 101\r\n"
-                        //<< "a=sendrecv\r\n"
+                        // << "a=sendrecv\r\n"
                         << "a=recvonly\r\n"
                         << "a=rtpmap:101 telephone-event/8000\r\n"
                         << "a=fmtp:101 0-15\r\n"
