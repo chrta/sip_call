@@ -22,7 +22,6 @@
 
 #include <cstring>
 
-#define CONFIG_RING_DURATION (7000)
 #define CONFIG_SIP_USER "620"
 #define CONFIG_SIP_PASSWORD "secret"
 #define CONFIG_SIP_SERVER_IP "192.168.179.1"
@@ -84,7 +83,7 @@ void sip_task(void* pvParameters)
 int main(int, char**)
 {
     // seed for std::rand() used in the sip client
-    std::srand(time(nullptr));
+    std::srand(static_cast<unsigned int>(time(nullptr)));
 
     // Execute io_context.run() only from one thread
     asio::io_context io_context { 1 };
