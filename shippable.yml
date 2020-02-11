@@ -1,0 +1,35 @@
+language: none
+
+# compiler:
+#   - gcc
+
+# cache: true
+
+# before_install:
+#   - sudo apt-get install apt-transport-https ca-certificates gnupg software-properties-common wget
+#   - wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | sudo apt-key add -
+#   - sudo apt-add-repository 'deb https://apt.kitware.com/ubuntu/ xenial main'
+#   - sudo apt-get update
+#   - sudo apt-get install -y cmake
+#   - sudo apt-get install -y libasio-dev libmbedtls-dev
+
+# build:
+#   ci:
+#     - mkdir build_gcc && cd build_gcc && cmake ../native && make
+
+# pull latest esp idf
+# see https://docs.espressif.com/projects/esp-idf/en/latest/api-guides/tools/idf-docker-image.html
+
+build:
+  pre_ci_boot:
+    image_name: espressif/idf
+    image_tag: latest
+    pull: true
+    env: FOO=bar
+    options: "-e HOME=/root"
+
+  ci:
+    - apt-get update
+    - apt-get install -y libasio-dev libmbedtls-dev clang
+    - /opt/esp/entrypoint.sh idf.py build
+    - mkdir build_gcc && cd build_gcc && /opt/esp/entrypoint.sh cmake ../native && /opt/esp/entrypoint.sh make
