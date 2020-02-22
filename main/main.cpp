@@ -168,7 +168,7 @@ static void sip_task(void* pvParameters)
                 vTaskDelay(2000 / portTICK_RATE_MS);
                 continue;
             }
-            client.set_event_handler([&button_input_handler](const SipClientEvent& event) {
+            client.set_event_handler([&button_input_handler](SipClientT &client, const SipClientEvent& event) {
                 switch (event.event)
                 {
                 case SipClientEvent::Event::CALL_START:

@@ -84,7 +84,7 @@ public:
     {
         using namespace sml;
 
-        // This must not be in the contructor, since the cunstructor may be executed
+        // This must not be in the contructor, since the constructor may be executed
         // before initializing the internal gpio isr initialization function.
         // In this case the following call would fail and crash afterwards.
         ESP_ERROR_CHECK(gpio_install_isr_service(0));

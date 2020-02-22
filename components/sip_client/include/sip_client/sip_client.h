@@ -28,10 +28,15 @@
 template <class SocketT, class Md5T>
 class SipClient
 {
+private:
+    using SipClientT = SipClient<SocketT, Md5T>;
+    using SipClientInternal = SipClientInt<SocketT, Md5T, sip_states, SipClientT>;
+    using SmlSmT = sml::sm<sip_states<SipClientInternal>, sml::logger<Logger>>;
+
 public:
     SipClient(asio::io_context& io_context, const std::string& user, const std::string& pwd, const std::string& server_ip, const std::string& server_port, const std::string& my_ip)
         : m_sip {
-            io_context, user, pwd, server_ip, server_port, my_ip, m_sm
+            io_context, user, pwd, server_ip, server_port, my_ip, m_sm, *this
         }
         , m_logger {}
         , m_sm { m_sip, m_logger }
@@ -63,7 +68,7 @@ public:
         m_sip.set_credentials(user, password);
     }
 
-    void set_event_handler(std::function<void(const SipClientEvent&)> handler)
+    void set_event_handler(std::function<void(SipClientT&, const SipClientEvent&)> handler)
     {
         m_sip.set_event_handler(handler);
     }
@@ -90,8 +95,6 @@ public:
     }
 
 private:
-    using SipClientInternal = SipClientInt<SocketT, Md5T, sip_states>;
-    using SmlSmT = sml::sm<sip_states<SipClientInternal>, sml::logger<Logger>>;
     SipClientInternal m_sip;
     Logger m_logger;
     SmlSmT m_sm;

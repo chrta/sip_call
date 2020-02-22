@@ -25,13 +25,13 @@
 
 namespace sml = boost::sml;
 
-template <class SocketT, class Md5T, template <typename> typename SmT>
+template <class SocketT, class Md5T, template <typename> typename SmT, class SipClientT>
 class SipClientInt
 {
-    using SmlSmT = sml::sm<SmT<SipClientInt<SocketT, Md5T, SmT>>, sml::logger<Logger>>;
+    using SmlSmT = sml::sm<SmT<SipClientInt<SocketT, Md5T, SmT, SipClientT>>, sml::logger<Logger>>;
 
 public:
-    SipClientInt(asio::io_context& io_context, const std::string& user, const std::string& pwd, const std::string& server_ip, const std::string& server_port, const std::string& my_ip, SmlSmT& sm)
+    SipClientInt(asio::io_context& io_context, const std::string& user, const std::string& pwd, const std::string& server_ip, const std::string& server_port, const std::string& my_ip, SmlSmT& sm, SipClientT& sip_client)
         : m_socket(io_context, server_ip, server_port, LOCAL_PORT, [this](std::string data) {
             rx(data);
         })
@@ -56,6 +56,7 @@ public:
         , m_io_context(io_context)
         , m_timer(io_context)
         , m_command_timeout_timer(io_context)
+        , m_sip_client(sip_client)
     {
     }
 
@@ -103,7 +104,7 @@ public:
         m_to_uri = "sip:" + m_user + "@" + m_server_ip;
     }
 
-    void set_event_handler(std::function<void(const SipClientEvent&)> handler)
+    void set_event_handler(std::function<void(SipClientT&, const SipClientEvent&)> handler)
     {
         m_event_handler = handler;
     }
@@ -213,7 +214,7 @@ public:
         //received an invite, answered it already with ok, so new call is established, because someone called us
         if (m_event_handler)
         {
-            m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_START });
+            m_event_handler(m_sip_client, SipClientEvent { SipClientEvent::Event::CALL_START });
         }
     }
 
@@ -223,7 +224,7 @@ public:
         send_sip_ack();
         if (m_event_handler)
         {
-            m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_START });
+            m_event_handler(m_sip_client, SipClientEvent { SipClientEvent::Event::CALL_START });
         }
     }
 
@@ -231,7 +232,7 @@ public:
     {
         if (m_event_handler)
         {
-            m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_CANCELLED });
+            m_event_handler(m_sip_client, SipClientEvent { SipClientEvent::Event::CALL_CANCELLED });
         }
         send_sip_ack();
         m_tag = std::rand() % 2147483647;
@@ -243,7 +244,7 @@ public:
     {
         if (m_event_handler)
         {
-            m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_CANCELLED, ' ', 0, SipClientEvent::CancelReason::TARGET_BUSY });
+            m_event_handler(m_sip_client, SipClientEvent { SipClientEvent::Event::CALL_CANCELLED, ' ', 0, SipClientEvent::CancelReason::TARGET_BUSY });
         }
     }
 
@@ -251,7 +252,7 @@ public:
     {
         if (m_event_handler)
         {
-            m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_CANCELLED, ' ', 0, SipClientEvent::CancelReason::CALL_DECLINED });
+            m_event_handler(m_sip_client, SipClientEvent { SipClientEvent::Event::CALL_CANCELLED, ' ', 0, SipClientEvent::CancelReason::CALL_DECLINED });
         }
     }
 
@@ -260,7 +261,7 @@ public:
         m_sip_sequence_number++;
         if (m_event_handler)
         {
-            m_event_handler(SipClientEvent { SipClientEvent::Event::CALL_END });
+            m_event_handler(m_sip_client, SipClientEvent { SipClientEvent::Event::CALL_END });
         }
     }
 
@@ -376,7 +377,7 @@ private:
         {
             if (m_event_handler)
             {
-                m_event_handler(SipClientEvent { SipClientEvent::Event::BUTTON_PRESS, packet.get_dtmf_signal(), packet.get_dtmf_duration() });
+                m_event_handler(m_sip_client, SipClientEvent { SipClientEvent::Event::BUTTON_PRESS, packet.get_dtmf_signal(), packet.get_dtmf_duration() });
             }
         }
 
@@ -678,13 +679,15 @@ private:
     uint32_t m_sdp_session_id;
     Buffer<1024> m_tx_sdp_buffer;
 
-    std::function<void(const SipClientEvent&)> m_event_handler;
+    std::function<void(SipClientT&, const SipClientEvent&)> m_event_handler;
 
     SmlSmT& m_sm;
 
     asio::io_context& m_io_context;
     asio::steady_timer m_timer;
     asio::steady_timer m_command_timeout_timer;
+
+    SipClientT& m_sip_client;
 
     static constexpr const uint16_t LOCAL_PORT = 5060;
     static constexpr const char* TRANSPORT_LOWER = "udp";
