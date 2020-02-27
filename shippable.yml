@@ -21,15 +21,17 @@ language: none
 # see https://docs.espressif.com/projects/esp-idf/en/latest/api-guides/tools/idf-docker-image.html
 
 build:
+  pre_ci:
+    - docker build -t sip-call-image:latest docker/
+    
   pre_ci_boot:
-    image_name: espressif/idf
+    image_name: sip-call-image
     image_tag: latest
-    pull: true
+    pull: false
     env: FOO=bar
     options: "-e HOME=/root"
 
   ci:
-    - apt-get update
-    - apt-get install -y libasio-dev libmbedtls-dev clang
     - /opt/esp/entrypoint.sh idf.py build
-    - mkdir build_gcc && cd build_gcc && /opt/esp/entrypoint.sh cmake ../native && /opt/esp/entrypoint.sh make
+    - mkdir build_clang && cd build_clang && CC=clang-9 CXX=clang++-9 /opt/esp/entrypoint.sh cmake ../native -D CMAKE_CXX_FLAGS=-DASIO_STANDALONE && /opt/esp/entrypoint.sh make
+#    - mkdir build_gcc && cd build_gcc && /opt/esp/entrypoint.sh cmake ../native -D CMAKE_CXX_FLAGS=-DASIO_STANDALONE && /opt/esp/entrypoint.sh make
