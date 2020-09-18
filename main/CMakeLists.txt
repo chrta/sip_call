@@ -5,4 +5,4 @@ idf_component_register(SRCS ./main.cpp
 #                       REQUIRES )
 #                       PRIV_REQUIRES )
 
-target_compile_options(${COMPONENT_LIB} PRIVATE -std=c++17)
+target_compile_options(${COMPONENT_LIB} PRIVATE -std=gnu++17)
