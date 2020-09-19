@@ -17,9 +17,9 @@ Tested with:
 Programming
 -----------
 
-The source code is mixed C and C++. A transition to boost:sml is in progress.
+The source code is mixed C and C++.
 
-This application is to be used with `Espressif IoT Development Framework`_ (ESP-IDF). It is tested with revision 93a8603c545fb8e54741d6685146e2f3b874378d
+This application is to be used with `Espressif IoT Development Framework`_ (ESP-IDF). It is tested with revision 8bc19ba893e5544d571a753d82b44a84799b94b1
 
 Please check ESP-IDF docs for getting started instructions.
 
@@ -32,7 +32,7 @@ The project now uses cmake, so after initializing your environment with the rele
   cd <this project's root dir>
   idf.py menuconfig
   idf.py build
-  idf.py build monitor
+  idf.py flash monitor
 
 To build this project for the pc (linux, tested with ubuntu 18.04), a sample (not all features are supported, yet)::
 
@@ -64,7 +64,7 @@ If the bell transformer delivers enough power, the ESP32 can be powered from it.
 License
 -------
 
-If not otherwise specified, code in this repository is Copyright (C) 2017-2019 Christian Taedcke <hacking@taedcke.com>, licensed under the Apache License 2.0 as described in the file LICENSE.
+If not otherwise specified, code in this repository is Copyright (C) 2017-2020 Christian Taedcke <hacking@taedcke.com>, licensed under the Apache License 2.0 as described in the file LICENSE.
 
 Misc Information
 ----------------
