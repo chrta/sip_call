@@ -19,6 +19,7 @@
 #include "sip_client/asio_udp_client.h"
 #include "sip_client/mbedtls_md5.h"
 #include "sip_client/sip_client.h"
+#include "sip_client/sip_client_event_handler.h"
 
 #include <cstring>
 
@@ -42,8 +43,12 @@ static void sip_task(void* pvParameters) __attribute__((noreturn));
 
 void sip_task(void* pvParameters)
 {
-    auto* handlers = static_cast<handlers_t*>(pvParameters);
-    SipClientT& client = handlers->client;
+    auto* ctx = static_cast<handlers_t*>(pvParameters);
+    SipClientT& client = ctx->client;
+
+    static std::tuple handlers {
+        SipEventHandlerLog {}
+    };
 
     for (;;)
     {
@@ -57,26 +62,12 @@ void sip_task(void* pvParameters)
                 sleep(2); //sleep two seconds
                 continue;
             }
-            client.set_event_handler([](const SipClientEvent& event) {
-                switch (event.event)
-                {
-                case SipClientEvent::Event::CALL_START:
-                    ESP_LOGI(TAG, "Call start");
-                    break;
-                case SipClientEvent::Event::CALL_CANCELLED:
-                    ESP_LOGI(TAG, "Call cancelled, reason %d", (int)event.cancel_reason);
-                    break;
-                case SipClientEvent::Event::CALL_END:
-                    ESP_LOGI(TAG, "Call end");
-                    break;
-                case SipClientEvent::Event::BUTTON_PRESS:
-                    ESP_LOGI(TAG, "Got button press: %c for %d milliseconds", event.button_signal, event.button_duration);
-                    break;
-                }
+            client.set_event_handler([](SipClientT& client, const SipClientEvent& event) {
+                std::apply([event, &client](auto&... h) { (h.handle(client, event), ...); }, handlers);
             });
         }
 
-        handlers->io_context.run();
+        ctx->io_context.run();
     }
 }
 

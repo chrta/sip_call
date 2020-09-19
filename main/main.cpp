@@ -24,16 +24,18 @@ extern "C" {
 #include "esp_wifi_default.h"
 }
 
+#include "esp_event.h"
 #include "esp_system.h"
 #include "esp_wifi.h"
-#include "esp_event.h"
 #include "nvs_flash.h"
 
 #include "sip_client/asio_udp_client.h"
 #include "sip_client/mbedtls_md5.h"
 #include "sip_client/sip_client.h"
+#include "sip_client/sip_client_event_handler.h"
 
 #include "button_handler.h"
+#include "sip_event_handler_button.h"
 
 #include <string.h>
 
@@ -140,18 +142,24 @@ static void initialize_wifi()
     esp_wifi_set_ps(DEFAULT_PS_MODE);
 }
 
+using ButtonInputHandlerT = ButtonInputHandler<SipClientT, BELL_GPIO_PIN, RING_DURATION_TIMEOUT_MSEC>;
+
 struct handlers_t
 {
     SipClientT& client;
-    ButtonInputHandler<SipClientT, BELL_GPIO_PIN, RING_DURATION_TIMEOUT_MSEC>& button_input_handler;
+    ButtonInputHandlerT& button_input_handler;
     asio::io_context& io_context;
 };
 
 static void sip_task(void* pvParameters)
 {
-    handlers_t* handlers = static_cast<handlers_t*>(pvParameters);
-    SipClientT& client = handlers->client;
-    ButtonInputHandler<SipClientT, BELL_GPIO_PIN, RING_DURATION_TIMEOUT_MSEC>& button_input_handler = handlers->button_input_handler;
+    handlers_t* ctx = static_cast<handlers_t*>(pvParameters);
+    SipClientT& client = ctx->client;
+
+    static std::tuple handlers {
+        SipEventHandlerLog {},
+        SipEventHandlerButton { ctx->button_input_handler }
+    };
 
     for (;;)
     {
@@ -168,28 +176,13 @@ static void sip_task(void* pvParameters)
                 vTaskDelay(2000 / portTICK_RATE_MS);
                 continue;
             }
-            client.set_event_handler([&button_input_handler](SipClientT &client, const SipClientEvent& event) {
-                switch (event.event)
-                {
-                case SipClientEvent::Event::CALL_START:
-                    ESP_LOGI(TAG, "Call start");
-                    break;
-                case SipClientEvent::Event::CALL_CANCELLED:
-                    ESP_LOGI(TAG, "Call cancelled, reason %d", (int)event.cancel_reason);
-                    button_input_handler.call_end();
-                    break;
-                case SipClientEvent::Event::CALL_END:
-                    ESP_LOGI(TAG, "Call end");
-                    button_input_handler.call_end();
-                    break;
-                case SipClientEvent::Event::BUTTON_PRESS:
-                    ESP_LOGI(TAG, "Got button press: %c for %d milliseconds", event.button_signal, event.button_duration);
-                    break;
-                }
+
+            client.set_event_handler([](SipClientT& client, const SipClientEvent& event) {
+                std::apply([event, &client](auto&... h) { (h.handle(client, event), ...); }, handlers);
             });
         }
 
-        handlers->io_context.run();
+        ctx->io_context.run();
     }
 }
 

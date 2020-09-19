@@ -6,9 +6,6 @@ project(sip-client C CXX)
 
 find_package( Threads REQUIRED )
 
-# set the C++14 standard
-set(CMAKE_CXX_STANDARD 17)
-
 set (PROJECT_ROOT_DIR ..)
 set (PROJECT_COMPONENTS_DIR ${PROJECT_ROOT_DIR}/components)
 
@@ -33,7 +30,12 @@ add_executable(sip-client ${SOURCES})
 target_link_libraries(sip-client mbedcrypto ${CMAKE_THREAD_LIBS_INIT})
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-  target_compile_options(sip-client PRIVATE -Wall -Wextra -Weverything -pedantic -Wno-c++98-compat -Wno-format-nonliteral -Wno-gnu-zero-variadic-macro-arguments -Wno-c++98-compat-pedantic)
+  target_compile_options(sip-client PRIVATE -Wall -Wextra -Weverything -Wno-c++98-compat -Wno-format-nonliteral -Wno-gnu-zero-variadic-macro-arguments -Wno-c++98-compat-pedantic)
 else()
-  target_compile_options(sip-client PRIVATE -Wall -Wextra -pedantic -Werror)
+  target_compile_options(sip-client PRIVATE -Wall -Wextra -Werror)
 endif()
+
+# set the C++ standard
+set(TARGET sip-client PROPERTY CMAKE_CXX_STANDARD_REQUIRED 17)
+set_property(TARGET sip-client PROPERTY CXX_STANDARD 17)
+
