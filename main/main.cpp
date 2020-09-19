@@ -35,6 +35,7 @@ extern "C" {
 #include "sip_client/sip_client_event_handler.h"
 
 #include "button_handler.h"
+#include "sip_event_handler_actuator.h"
 #include "sip_event_handler_button.h"
 
 #include <string.h>
@@ -166,7 +167,13 @@ static void sip_task(void* pvParameters)
 
     static std::tuple handlers {
         SipEventHandlerLog {},
-        SipEventHandlerButton { ctx->button_input_handler }
+        SipEventHandlerButton { ctx->button_input_handler },
+#ifdef CONFIG_ACTUATOR_ENABLED
+        SipEventHandlerActuator<static_cast<gpio_num_t>(CONFIG_ACTUATOR_OUTPUT_GPIO),
+            CONFIG_ACTUATOR_ACTIVE_HIGH,
+            CONFIG_ACTUATOR_SWITCHING_DURATION,
+            CONFIG_ACTUATOR_PHONE_BUTTON[0]> {},
+#endif /* ACTUATOR_ENABLED */
     };
 
     for (;;)

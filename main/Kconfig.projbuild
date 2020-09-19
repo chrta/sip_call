@@ -35,6 +35,8 @@ config BELL_INPUT_GPIO
                 Some GPIOs are used for other purposes (flash connections, etc.) and cannot be used.
                 GPIO 0 is also the boot pin, so the BOOT button can be used for testing.
 
+rsource 'Kconfig.actuator'
+
 config RING_DURATION
     int "Ring duration in milliseconds"
         range 1000 30000
