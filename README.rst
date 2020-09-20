@@ -19,7 +19,7 @@ Programming
 
 The source code is mixed C and C++.
 
-This application is to be used with `Espressif IoT Development Framework`_ (ESP-IDF). It is tested with revision 8bc19ba893e5544d571a753d82b44a84799b94b1
+This application is to be used with `Espressif IoT Development Framework`_ (ESP-IDF). It is tested with revision 4288a5978baa928977c01bbae4dd15c2e7ca416a
 
 Please check ESP-IDF docs for getting started instructions.
 
