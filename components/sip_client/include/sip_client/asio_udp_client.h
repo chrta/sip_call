@@ -89,6 +89,11 @@ public:
         return strlen(m_buffer.data());
     }
 
+    bool empty() const
+    {
+        return size() == 0;
+    }
+
 private:
     std::array<char, SIZE> m_buffer;
 };

@@ -253,7 +253,7 @@ public:
         {
             m_event_handler(m_sip_client, SipClientEvent { SipClientEvent::Event::CALL_CANCELLED });
         }
-        send_sip_ack();
+
         m_tag = std::rand() % 2147483647;
         m_branch = std::rand() % 2147483647;
         m_sip_sequence_number++;
@@ -369,6 +369,7 @@ private:
         }
         else if (reply == SipPacket::Status::REQUEST_CANCELLED_487)
         {
+            send_sip_ack(packet);
             m_sm.process_event(ev_487_request_cancelled {});
         }
         else if (reply == SipPacket::Status::DECLINE_603)
@@ -539,13 +540,73 @@ private:
         m_socket.send_buffered_data();
     }
 
+    void send_sip_ack(const SipPacket& packet)
+    {
+        TxBufferT& tx_buffer = m_socket.get_new_tx_buf();
+        if (!m_to_contact.empty())
+        {
+            send_sip_header("ACK", m_to_contact, m_to_uri, tx_buffer, &packet);
+        }
+        else
+        {
+            send_sip_header("ACK", m_uri, m_to_uri, tx_buffer, &packet);
+        }
+        tx_buffer << "Content-Length: 0\r\n";
+        tx_buffer << "\r\n";
+
+        m_socket.send_buffered_data();
+    }
+
     void send_sip_ok(const SipPacket& packet)
     {
         TxBufferT& tx_buffer = m_socket.get_new_tx_buf();
 
         send_sip_reply_header("200 OK", packet, tx_buffer);
-        tx_buffer << "Content-Length: 0\r\n";
+        m_tx_sdp_buffer.clear();
+
+        if (packet.get_method() == SipPacket::Method::INVITE)
+        {
+            /*diff
+
+		  in to not tag (becose invite to no tag)
+		  where to get the tag from???
+
+		  no Contact:
+		  x no User Agent:
+		  no Supported:
+		  x no Allow:
+		  no Allow-Events:
+
+		  x Content-Type must be sdp
+		  Accept: missing
+		  no Accept-Encoding
+
+		 */
+
+            tx_buffer << "Content-Type: application/sdp\r\n";
+            tx_buffer << "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO\r\n";
+
+            m_tx_sdp_buffer << "v=0\r\n"
+                            << "o=" << m_user << " " << m_sdp_session_id << " " << m_sdp_session_id << " IN IP4 " << m_my_ip << "\r\n"
+                            << "s=sip-client/0.0.1\r\n"
+                            << "c=IN IP4 " << m_my_ip << "\r\n"
+                            << "t=0 0\r\n"
+                            << "m=audio " << LOCAL_RTP_PORT << " RTP/AVP 0 8 101\r\n"
+                            //<< "a=sendrecv\r\n"
+                            << "a=recvonly\r\n"
+                            << "a=rtpmap:101 telephone-event/8000\r\n"
+                            << "a=fmtp:101 0-15\r\n"
+                            << "a=ptime:20\r\n";
+        }
+
+        tx_buffer << "User-Agent: sip-client/0.0.1\r\n";
+        tx_buffer << "Content-Length: " << m_tx_sdp_buffer.size() << "\r\n";
         tx_buffer << "\r\n";
+
+        if (!m_tx_sdp_buffer.empty())
+        {
+            tx_buffer << m_tx_sdp_buffer.data();
+        }
 
         m_socket.send_buffered_data();
     }
@@ -561,7 +622,7 @@ private:
         m_socket.send_buffered_data();
     }
 
-    void send_sip_header(const std::string& command, const std::string& uri, const std::string& to_uri, TxBufferT& stream)
+    void send_sip_header(const std::string& command, const std::string& uri, const std::string& to_uri, TxBufferT& stream, const SipPacket* packet = nullptr)
     {
         stream << command << " " << uri << " SIP/2.0\r\n";
 
@@ -590,6 +651,26 @@ private:
         else
         {
             stream << "To: <" << to_uri << ">\r\n";
+        }
+
+        if ((command == "ACK") && (!m_response.empty()))
+        {
+            //if (m_proxy_auth)
+            //{
+            //    stream << "Proxy-";
+            //}
+            stream << "Authorization: Digest username=\"" << m_user << "\", realm=\"" << m_realm << "\", nonce=\"" << m_nonce << "\", uri=\"" << m_uri << "\", response=\"" << m_response << "\"\r\n";
+        }
+        if ((command == "ACK") && (packet != nullptr))
+        {
+            for (auto rr : packet->get_record_route())
+            {
+                if (rr.empty())
+                {
+                    break;
+                }
+                stream << "Route: " << rr << "\r\n";
+            }
         }
     }
 
