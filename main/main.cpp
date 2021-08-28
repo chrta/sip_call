@@ -137,7 +137,7 @@ static void initialize_wifi()
     /* Setting a password implies station will connect to all security modes including WEP/WPA.
       * However these modes are deprecated and not advisable to be used. Incase your Access point
       * doesn't support WPA2, these mode can be enabled by commenting below line */
-    wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_WPA3_PSK;
+    wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
 
     wifi_config.sta.pmf_cfg.capable = true;
     wifi_config.sta.pmf_cfg.required = false;
