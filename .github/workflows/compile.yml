@@ -1,0 +1,28 @@
+name: Compile Project
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build-docker-container:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v2
+    - name: Build docker container
+      uses: ./.github/actions/exec-in-build-image
+      with:
+        cmd: env
+    - name: Build for esp32
+      uses: ./.github/actions/exec-in-build-image
+      with:
+        cmd: ci/build_for_esp32.sh
+    - name: Build for PC
+      uses: ./.github/actions/exec-in-build-image
+      with:
+        cmd: ci/build_for_pc.sh
