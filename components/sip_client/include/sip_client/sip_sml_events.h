@@ -28,6 +28,7 @@ struct ev_initiate_call
 };
 struct ev_200_ok
 {
+    const uint32_t contact_expires;
 };
 struct ev_183_session_progress
 {
@@ -69,5 +70,9 @@ struct ev_500_internal_server_error
 };
 
 struct ev_reply_timeout
+{
+};
+
+struct ev_reregister
 {
 };

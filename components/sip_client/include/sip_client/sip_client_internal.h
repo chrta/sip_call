@@ -56,6 +56,7 @@ public:
         , m_io_context(io_context)
         , m_timer(io_context)
         , m_command_timeout_timer(io_context)
+        , m_reregister_timer(io_context)
         , m_sip_client(sip_client)
     {
     }
@@ -154,6 +155,22 @@ public:
         //sending REGISTER with auth
         compute_auth_response("REGISTER", "sip:" + m_server_ip);
         send_sip_register();
+    }
+
+    void schedule_reregister(uint32_t register_expires)
+    {
+        if (register_expires < 10)
+        {
+            register_expires = 3600;
+        }
+        m_reregister_timer.expires_after(asio::chrono::seconds(register_expires / 2));
+
+        m_reregister_timer.async_wait([this](const asio::error_code& ec) {
+            if (!ec)
+            {
+                this->m_sm.process_event(ev_reregister {});
+            }
+        });
     }
 
     void is_registered()
@@ -333,7 +350,7 @@ private:
         }
         else if (reply == SipPacket::Status::OK_200)
         {
-            m_sm.process_event(ev_200_ok {});
+            m_sm.process_event(ev_200_ok { packet.get_contact_expires() });
         }
         else if (reply == SipPacket::Status::TRYING_100)
         {
@@ -686,6 +703,7 @@ private:
     asio::io_context& m_io_context;
     asio::steady_timer m_timer;
     asio::steady_timer m_command_timeout_timer;
+    asio::steady_timer m_reregister_timer;
 
     SipClientT& m_sip_client;
 
