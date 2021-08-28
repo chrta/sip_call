@@ -11,7 +11,7 @@ is started again.
 Tested with:
 
 * AVM Fritzbox 7390
-* AVM Fritzbox 7490 (Firmware 7.12)
+* AVM Fritzbox 7490 (Firmware 7.27)
 * AVM Fritzbox 7590
 
 Programming
@@ -19,7 +19,7 @@ Programming
 
 The source code is mixed C and C++.
 
-This application is to be used with `Espressif IoT Development Framework`_ (ESP-IDF). It is tested with revision 4288a5978baa928977c01bbae4dd15c2e7ca416a
+This application is to be used with `Espressif IoT Development Framework`_ (ESP-IDF). It is tested with version v4.3 (rev c9646ff0beffc86d2c6d1bfbad34da16e328e0e3)
 
 Please check ESP-IDF docs for getting started instructions.
 
@@ -64,7 +64,7 @@ If the bell transformer delivers enough power, the ESP32 can be powered from it.
 License
 -------
 
-If not otherwise specified, code in this repository is Copyright (C) 2017-2020 Christian Taedcke <hacking@taedcke.com>, licensed under the Apache License 2.0 as described in the file LICENSE.
+If not otherwise specified, code in this repository is Copyright (C) 2017-2021 Christian Taedcke <hacking@taedcke.com>, licensed under the Apache License 2.0 as described in the file LICENSE.
 
 Misc Information
 ----------------
