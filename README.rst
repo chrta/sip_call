@@ -34,7 +34,7 @@ The project now uses cmake, so after initializing your environment with the rele
   idf.py build
   idf.py flash monitor
 
-To build this project for the pc (linux, tested with ubuntu 18.04), a sample (not all features are supported, yet)::
+To build this project for the pc (linux, e.g. ubuntu or fedora), a sample (not all features are supported, yet)::
 
   mkdir <build dir>
   cd <build dir>
@@ -42,6 +42,10 @@ To build this project for the pc (linux, tested with ubuntu 18.04), a sample (no
   make
 
 The sip server configuration must be done in the defines of the file <this project's root dir>/native/main.cpp.
+
+The following libraries are required for this (e.g. on fedora)::
+
+  sudo dnf install asio-devel mbedtls-devel
 
 Hardware
 --------
