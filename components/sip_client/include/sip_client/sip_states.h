@@ -38,8 +38,13 @@ struct sip_states
         };
 
         const auto action_is_registered = [](SipClientT& sip, const auto& event) {
-            (void)event;
+            sip.schedule_reregister(event.contact_expires);
             sip.is_registered();
+        };
+
+        const auto action_retry_reregistered = [](SipClientT& sip, const auto& event) {
+            (void)event;
+            sip.schedule_reregister(20);
         };
 
         const auto action_send_invite = [](SipClientT& sip, const auto& event) {
@@ -89,6 +94,7 @@ struct sip_states
             "waiting_for_auth_reply"_s + event<ev_reply_timeout> / action_register_unauth = "waiting_for_auth_reply"_s,
             "waiting_for_auth_reply"_s + event<ev_200_ok> / action_is_registered = "registered"_s,
             "waiting_for_auth_reply"_s + event<ev_500_internal_server_error> / action_rx_internal_server_error = "idle"_s,
+            "registered"_s + event<ev_reregister> / action_register_unauth = "waiting_for_auth_reply"_s,
             "registered"_s + event<ev_request_call> / action_request_call = "registered"_s,
             "registered"_s + event<ev_initiate_call> / action_send_invite = "calling"_s,
             "registered"_s + event<ev_rx_invite> / action_rx_invite = "call_established"_s,
@@ -100,8 +106,10 @@ struct sip_states
             "calling"_s + event<ev_487_request_cancelled> / action_call_cancelled = "registered"_s,
             "calling"_s + event<ev_486_busy_here> / action_call_declined = "registered"_s,
             "calling"_s + event<ev_603_decline> / action_call_declined = "registered"_s,
+            "calling"_s + event<ev_reregister> / action_retry_reregistered = "calling"_s,
             "call_established"_s + event<ev_rx_bye> / action_rx_bye = "registered"_s,
             "call_established"_s + event<ev_200_ok> = X,
+            "call_established"_s + event<ev_reregister> / action_retry_reregistered = "call_established"_s,
             "calling"_s + event<ev_200_ok> = X);
     }
 };
