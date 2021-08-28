@@ -1,0 +1,12 @@
+name: 'Exec In Build Image'
+description: 'Executes the given commands in the local docker image'
+inputs:
+  cmd:
+    description: 'Command to run'
+    required: true
+    default: 'pwd'
+runs:
+  using: 'docker'
+  image: '../../../docker/Dockerfile'
+  args:
+    - ${{ inputs.cmd }}

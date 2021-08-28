@@ -1,0 +1,6 @@
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=16000
+
+# change some settings so they are built on the build-server
+CONFIG_ACTUATOR_ENABLED=y
+CONFIG_POWER_SAVE_MODEM_MAX=y
+CONFIG_SIP_SERVER_FIXED_IP=y
