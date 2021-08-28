@@ -47,6 +47,14 @@ The following libraries are required for this (e.g. on fedora)::
 
   sudo dnf install asio-devel mbedtls-devel
 
+Code formatting
++++++++++++++++
+
+Clang-format is used to format the code. The settings are stored in .clangformat. The format of external files, e.g.
+components/sip_client/include/boost/sml.hpp should not be changed. To run clang-format (e.g. version 12) over all files::
+
+  find . -regex '.*\.\(cpp\|hpp\|cc\|cxx\)' -exec clang-format -style=file -i {} \;
+
 Hardware
 --------
 
