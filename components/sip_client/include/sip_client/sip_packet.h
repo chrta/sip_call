@@ -109,6 +109,11 @@ public:
         return m_contact;
     }
 
+    uint32_t get_contact_expires() const
+    {
+        return m_contact_expires;
+    }
+
     std::string get_to_tag() const
     {
         return m_to_tag;
@@ -170,6 +175,7 @@ private:
 
         m_method = Method::UNKNOWN;
         m_status = Status::UNKNOWN;
+        m_contact_expires = 0;
         m_content_type = ContentType::UNKNOWN;
         m_content_length = 0;
         m_cseq = "";
@@ -240,14 +246,36 @@ private:
             else if (strncmp(CONTACT, start_position, strlen(CONTACT)) == 0)
             {
                 ESP_LOGV(TAG, "Detect contact line");
-                char* last_pos = strstr(start_position, ">");
-                if (last_pos == nullptr)
+                start_position = start_position + strlen(CONTACT);
+
+                const char* open_pos = strstr(start_position, "<");
+                const char* close_pos = strstr(start_position, ">");
+
+                if ((open_pos == nullptr) || (close_pos == nullptr))
                 {
                     ESP_LOGW(TAG, "Failed to read content of contact line");
                 }
                 else
                 {
-                    m_contact = std::string(start_position + strlen(CONTACT), last_pos);
+                    m_contact = std::string(open_pos + 1, close_pos);
+
+                    /* in the SIP 200 OK finishing a successful REGISTER, the contact line might also
+		     * contain the expire information from the server, e.g.
+		     * Contact: <...>;expires=300
+		     */
+                    const char* expires_pos = strstr(close_pos + 1, ";expires=");
+                    if (expires_pos != nullptr)
+                    {
+                        long contact_expires = strtol(expires_pos + strlen(";expires="), nullptr, 10);
+                        if (contact_expires < 0)
+                        {
+                            ESP_LOGW(TAG, "Invalid contact expires %ld", contact_expires);
+                        }
+                        else
+                        {
+                            m_contact_expires = static_cast<uint32_t>(contact_expires);
+                        }
+                    }
                 }
             }
             else if (strncmp(TO, start_position, strlen(TO)) == 0)
@@ -470,6 +498,7 @@ private:
     std::string m_realm;
     std::string m_nonce;
     std::string m_contact;
+    uint32_t m_contact_expires;
     std::string m_to_tag;
     std::string m_cseq;
     std::string m_call_id;
@@ -492,7 +521,7 @@ private:
     static constexpr const char* SIP_2_0_SPACE = "SIP/2.0 ";
     static constexpr const char* WWW_AUTHENTICATE = "WWW-Authenticate";
     static constexpr const char* PROXY_AUTHENTICATE = "Proxy-Authenticate";
-    static constexpr const char* CONTACT = "Contact: <";
+    static constexpr const char* CONTACT = "Contact: ";
     static constexpr const char* TO = "To: ";
     static constexpr const char* FROM = "From: ";
     static constexpr const char* VIA = "Via: ";
