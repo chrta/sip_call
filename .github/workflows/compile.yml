@@ -7,21 +7,29 @@ on:
     branches: [master]
 
 jobs:
-  build-docker-container:
-
+  setup:
     runs-on: ubuntu-latest
+    steps:
+    - name: Dummy step
+      run: echo "Setup not needed, because the docker image is built anyway in each job..."
 
+  check-codestyle:
+    needs: setup
+    runs-on: ubuntu-latest
     steps:
     - name: Checkout repo
       uses: actions/checkout@v2
-    - name: Build docker container
-      uses: ./.github/actions/exec-in-build-image
-      with:
-        cmd: env
     - name: Check codestyle
       uses: ./.github/actions/exec-in-build-image
       with:
         cmd: ci/check_codestyle.sh
+
+  build:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v2
     - name: Build for esp32
       uses: ./.github/actions/exec-in-build-image
       with:
