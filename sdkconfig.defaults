@@ -1,1 +1,4 @@
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=16000
+
+# reset on watchdog error
+CONFIG_ESP_TASK_WDT_PANIC=y
