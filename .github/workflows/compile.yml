@@ -13,7 +13,7 @@ jobs:
     - name: Dummy step
       run: echo "Setup not needed, because the docker image is built anyway in each job..."
 
-  check-codestyle:
+  check-codestyle-and-static:
     needs: setup
     runs-on: ubuntu-latest
     steps:
@@ -23,6 +23,10 @@ jobs:
       uses: ./.github/actions/exec-in-build-image
       with:
         cmd: ci/check_codestyle.sh
+    - name: Static code analysis
+      uses: ./.github/actions/exec-in-build-image
+      with:
+        cmd: ci/static_code_analysis.sh
 
   build:
     needs: setup
