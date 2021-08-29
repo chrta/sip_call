@@ -1,0 +1,4 @@
+# ignore file for the python script ci/run-clang-format.py
+
+# ignore imported boost sml
+*/boost/sml.hpp

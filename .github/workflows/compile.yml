@@ -18,6 +18,10 @@ jobs:
       uses: ./.github/actions/exec-in-build-image
       with:
         cmd: env
+    - name: Check codestyle
+      uses: ./.github/actions/exec-in-build-image
+      with:
+        cmd: ci/check_codestyle.sh
     - name: Build for esp32
       uses: ./.github/actions/exec-in-build-image
       with:
