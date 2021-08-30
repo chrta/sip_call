@@ -98,6 +98,7 @@ struct sip_states
             "registered"_s + event<ev_request_call> / action_request_call = "registered"_s,
             "registered"_s + event<ev_initiate_call> / action_send_invite = "calling"_s,
             "registered"_s + event<ev_rx_invite> / action_rx_invite = "call_established"_s,
+            "registered"_s + event<ev_start> / action_register_unauth = "waiting_for_auth_reply"_s,
             "calling"_s + event<ev_401_unauthorized> / action_send_invite = "calling"_s,
             "calling"_s + event<ev_cancel_call> / action_cancel_call = "calling"_s,
             "calling"_s + event<ev_183_session_progress> = "calling"_s,
@@ -107,9 +108,11 @@ struct sip_states
             "calling"_s + event<ev_486_busy_here> / action_call_declined = "registered"_s,
             "calling"_s + event<ev_603_decline> / action_call_declined = "registered"_s,
             "calling"_s + event<ev_reregister> / action_retry_reregistered = "calling"_s,
+            "calling"_s + event<ev_start> / action_register_unauth = "waiting_for_auth_reply"_s,
             "call_established"_s + event<ev_rx_bye> / action_rx_bye = "registered"_s,
             "call_established"_s + event<ev_200_ok> = X,
             "call_established"_s + event<ev_reregister> / action_retry_reregistered = "call_established"_s,
+            "call_established"_s + event<ev_start> / action_register_unauth = "waiting_for_auth_reply"_s,
             "calling"_s + event<ev_200_ok> = X);
     }
 };
