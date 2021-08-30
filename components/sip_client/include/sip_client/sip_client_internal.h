@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <utility>
+
 #include "sip_client_event.h"
 #include "sip_packet.h"
 #include "sip_sml_events.h"
@@ -31,23 +33,20 @@ class SipClientInt
     using SmlSmT = sml::sm<SmT<SipClientInt<SocketT, Md5T, SmT, SipClientT>>, sml::logger<Logger>>;
 
 public:
-    SipClientInt(asio::io_context& io_context, const std::string& user, const std::string& pwd, const std::string& server_ip, const std::string& server_port, const std::string& my_ip, SmlSmT& sm, SipClientT& sip_client)
+    SipClientInt(asio::io_context& io_context, const std::string& user, std::string pwd, const std::string& server_ip, const std::string& server_port, std::string my_ip, SmlSmT& sm, SipClientT& sip_client)
         : m_socket(io_context, server_ip, server_port, LOCAL_PORT, [this](std::string data) {
             rx(data);
         })
-        , m_rtp_socket(io_context, server_ip, "7078", LOCAL_RTP_PORT, [](std::string) {
+        , m_rtp_socket(io_context, server_ip, "7078", LOCAL_RTP_PORT, [](const std::string& /*unused*/) {
         })
         , m_server_ip(server_ip)
         , m_user(user)
-        , m_pwd(pwd)
-        , m_my_ip(my_ip)
+        , m_pwd(std::move(pwd))
+        , m_my_ip(std::move(my_ip))
         , m_uri("sip:" + server_ip)
         , m_to_uri("sip:" + user + "@" + server_ip)
         , m_sip_sequence_number(std::rand() % 2147483647)
         , m_call_id(std::rand() % 2147483647)
-        , m_response("")
-        , m_realm("")
-        , m_nonce("")
         , m_proxy_auth(false)
         , m_tag(std::rand() % 2147483647)
         , m_branch(std::rand() % 2147483647)
@@ -63,8 +62,7 @@ public:
     }
 
     ~SipClientInt()
-    {
-    }
+    = default;
 
     bool init()
     {
@@ -82,7 +80,7 @@ public:
         return result_rtp && result_sip;
     }
 
-    bool is_initialized() const
+    [[nodiscard]] bool is_initialized() const
     {
         return m_socket.is_initialized();
     }
@@ -190,7 +188,7 @@ public:
         m_to_uri = "sip:**613@" + m_server_ip;
     }
 
-    void send_invite(const ev_401_unauthorized&)
+    void send_invite(const ev_401_unauthorized& /*unused*/)
     {
         //first ack the prev sip 401/407 packet
         send_sip_ack();
@@ -204,7 +202,7 @@ public:
         send_sip_invite();
     }
 
-    void send_invite(const ev_initiate_call&)
+    void send_invite(const ev_initiate_call& /*unused*/)
     {
         m_sip_sequence_number++;
         m_sdp_session_id = static_cast<uint32_t>(std::rand());
@@ -222,7 +220,7 @@ public:
         m_sm.process_event(ev_initiate_call {});
     }
 
-    void cancel_call(const ev_cancel_call&)
+    void cancel_call(const ev_cancel_call& /*unused*/)
     {
         ESP_LOGD(TAG, "Sending cancel request");
         send_sip_cancel();
@@ -232,7 +230,7 @@ public:
         //send_sip_bye();
     }
 
-    void handle_invite(const ev_rx_invite&)
+    void handle_invite(const ev_rx_invite& /*unused*/)
     {
         //received an invite, answered it already with ok, so new call is established, because someone called us
         if (m_event_handler)
@@ -263,7 +261,7 @@ public:
         m_sip_sequence_number++;
     }
 
-    void call_declined(const ev_486_busy_here&)
+    void call_declined(const ev_486_busy_here& /*unused*/)
     {
         if (m_event_handler)
         {
@@ -271,7 +269,7 @@ public:
         }
     }
 
-    void call_declined(const ev_603_decline&)
+    void call_declined(const ev_603_decline& /*unused*/)
     {
         if (m_event_handler)
         {
@@ -330,7 +328,7 @@ private:
             m_sm.process_event(ev_500_internal_server_error {});
             return;
         }
-        else if ((reply == SipPacket::Status::UNAUTHORIZED_401) || (reply == SipPacket::Status::PROXY_AUTH_REQ_407))
+        if ((reply == SipPacket::Status::UNAUTHORIZED_401) || (reply == SipPacket::Status::PROXY_AUTH_REQ_407))
         {
             m_realm = packet.get_realm();
             m_nonce = packet.get_nonce();
@@ -351,7 +349,7 @@ private:
             m_to_tag = packet.get_to_tag();
         }
 
-        if (reply == SipPacket::Status::UNAUTHORIZED_401)
+        if ((reply == SipPacket::Status::UNAUTHORIZED_401) || (reply == SipPacket::Status::PROXY_AUTH_REQ_407))
         {
             m_sm.process_event(ev_401_unauthorized {});
         }
@@ -366,10 +364,6 @@ private:
         else if (reply == SipPacket::Status::SESSION_PROGRESS_183)
         {
             m_sm.process_event(ev_183_session_progress {});
-        }
-        else if (reply == SipPacket::Status::PROXY_AUTH_REQ_407)
-        {
-            m_sm.process_event(ev_401_unauthorized {});
         }
         else if (reply == SipPacket::Status::REQUEST_CANCELLED_487)
         {
@@ -604,7 +598,7 @@ private:
         stream << "To: " << packet.get_to() << "\r\n";
         stream << "From: " << packet.get_from() << "\r\n";
 
-        for (auto rr : packet.get_record_route())
+        for (const auto& rr : packet.get_record_route())
         {
             if (rr.empty())
             {
@@ -613,7 +607,7 @@ private:
             stream << "Record-Route: " << rr << "\r\n";
         }
 
-        for (auto v : packet.get_via())
+        for (const auto& v : packet.get_via())
         {
             if (v.empty())
             {
@@ -636,7 +630,7 @@ private:
             return false;
         }
         pos += param.size();
-        size_t pos_end = line.find("\"", pos);
+        size_t pos_end = line.find('\"', pos);
         if (pos_end == std::string::npos)
         {
             return false;

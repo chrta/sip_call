@@ -1,7 +1,7 @@
 #pragma once
 
-#include <stdarg.h>
-#include <stdio.h>
+#include <cstdarg>
+#include <cstdio>
 
 static inline void my_log(const char* level, const char* prefix, const char* fmt, ...)
 {

@@ -62,8 +62,6 @@ public:
         , m_method(Method::UNKNOWN)
         , m_content_type(ContentType::UNKNOWN)
         , m_content_length(0)
-        , m_realm()
-        , m_nonce()
     {
     }
 
@@ -78,100 +76,100 @@ public:
         return true;
     }
 
-    Status get_status() const
+    [[nodiscard]] Status get_status() const
     {
         return m_status;
     }
 
-    Method get_method() const
+    [[nodiscard]] Method get_method() const
     {
         return m_method;
     }
 
-    ContentType get_content_type() const
+    [[nodiscard]] ContentType get_content_type() const
     {
         return m_content_type;
     }
 
-    uint32_t get_content_length() const
+    [[nodiscard]] uint32_t get_content_length() const
     {
         return m_content_length;
     }
 
-    std::string get_nonce() const
+    [[nodiscard]] std::string get_nonce() const
     {
         return m_nonce;
     }
 
-    std::string get_realm() const
+    [[nodiscard]] std::string get_realm() const
     {
         return m_realm;
     }
 
-    std::string get_contact() const
+    [[nodiscard]] std::string get_contact() const
     {
         return m_contact;
     }
 
-    uint32_t get_contact_expires() const
+    [[nodiscard]] uint32_t get_contact_expires() const
     {
         return m_contact_expires;
     }
 
-    std::string get_to_tag() const
+    [[nodiscard]] std::string get_to_tag() const
     {
         return m_to_tag;
     }
 
-    std::string get_cseq() const
+    [[nodiscard]] std::string get_cseq() const
     {
         return m_cseq;
     }
 
-    std::string get_call_id() const
+    [[nodiscard]] std::string get_call_id() const
     {
         return m_call_id;
     }
 
-    std::string get_to() const
+    [[nodiscard]] std::string get_to() const
     {
         return m_to;
     }
 
-    std::string get_from() const
+    [[nodiscard]] std::string get_from() const
     {
         return m_from;
     }
 
-    const ViaT& get_via() const
+    [[nodiscard]] const ViaT& get_via() const
     {
         return m_via;
     }
 
-    const RecordRouteT& get_record_route() const
+    [[nodiscard]] const RecordRouteT& get_record_route() const
     {
         return m_record_route;
     }
 
-    std::string get_p_called_party_id() const
+    [[nodiscard]] std::string get_p_called_party_id() const
     {
         return m_p_called_party_id;
     }
 
-    char get_dtmf_signal() const
+    [[nodiscard]] char get_dtmf_signal() const
     {
         return m_dtmf_signal;
     }
 
-    uint16_t get_dtmf_duration() const
+    [[nodiscard]] uint16_t get_dtmf_duration() const
     {
         return m_dtmf_duration;
     }
-    std::string get_media() const
+    [[nodiscard]] std::string get_media() const
     {
         return m_media;
     }
-    std::string get_cip() const
+    [[nodiscard]] std::string get_cip() const
     {
         return m_cip;
     }
@@ -209,7 +207,7 @@ private:
         uint32_t line_number = 0;
         do
         {
-            size_t length = static_cast<size_t>(end_position - start_position);
+            auto length = static_cast<size_t>(end_position - start_position);
             if (length == 0) //line only contains the line ending
             {
                 ESP_LOGV(TAG, "Valid end of header detected");
@@ -348,7 +346,7 @@ private:
             //go to next line
             start_position = next_start_position;
             end_position = strstr(start_position, LINE_ENDING);
-        } while (end_position);
+        } while (end_position != nullptr);
 
         //no line only containing the line ending found :(
         return false;
@@ -372,7 +370,7 @@ private:
 
         do
         {
-            size_t length = static_cast<size_t>(end_position - start_position);
+            auto length = static_cast<size_t>(end_position - start_position);
             if (length == 0) //line only contains the line ending
             {
                 return true;
@@ -413,12 +411,12 @@ private:
             //go to next line
             start_position = next_start_position;
             end_position = strstr(start_position, LINE_ENDING);
-        } while (end_position);
+        } while (end_position != nullptr);
 
         return true;
     }
 
-    bool read_param(const char* line, const char* param_name, std::string& output)
+    static bool read_param(const char* line, const char* param_name, std::string& output)
     {
         const char* pos = strstr(line, param_name);
         if (pos == nullptr)
@@ -445,7 +443,7 @@ private:
         return true;
     }
 
-    Status convert_status(long code) const
+    [[nodiscard]] static Status convert_status(long code)
     {
         switch (code)
         {
@@ -471,7 +469,7 @@ private:
         return Status::UNKNOWN;
     }
 
-    Method convert_method(const char* input) const
+    static Method convert_method(const char* input)
     {
         if (strstr(input, NOTIFY) == input)
         {
@@ -492,7 +490,7 @@ private:
         return Method::UNKNOWN;
     }
 
-    ContentType convert_content_type(const char* input) const
+    static ContentType convert_content_type(const char* input)
     {
         if (strstr(input, APPLICATION_DTMF_RELAY) == input)
         {
@@ -536,7 +534,7 @@ private:
     std::string m_realm;
     std::string m_nonce;
     std::string m_contact;
-    uint32_t m_contact_expires;
+    uint32_t m_contact_expires {};
     std::string m_to_tag;
     std::string m_cseq;
     std::string m_call_id;
@@ -548,10 +546,10 @@ private:
     std::string m_media;
     std::string m_cip;
 
-    char* m_body;
+    char* m_body {};
 
-    uint16_t m_dtmf_duration;
-    char m_dtmf_signal;
+    uint16_t m_dtmf_duration {};
+    char m_dtmf_signal {};
 
     static constexpr const char* LINE_ENDING = "\r\n";
     static constexpr size_t LINE_ENDING_LEN = 2;

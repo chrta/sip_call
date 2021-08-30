@@ -71,7 +71,7 @@ void sip_task(void* pvParameters)
     }
 }
 
-int main(int, char**)
+int main(int /*unused*/, char** /*unused*/)
 {
     // seed for std::rand() used in the sip client
     std::srand(static_cast<unsigned int>(time(nullptr)));

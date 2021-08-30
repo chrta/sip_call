@@ -20,6 +20,7 @@
 #include <cstring>
 #include <functional>
 #include <string>
+#include <utility>
 
 #include "esp_log.h"
 
@@ -79,12 +80,12 @@ public:
     }
 #endif
 
-    const char* data() const
+    [[nodiscard]] const char* data() const
     {
         return m_buffer.data();
     }
 
-    size_t size() const
+    [[nodiscard]] size_t size() const
     {
         return strlen(m_buffer.data());
     }
@@ -109,17 +110,13 @@ public:
 class AsioUdpClient
 {
 public:
-    AsioUdpClient(asio::io_context& io_context, const std::string& server_ip, const std::string& server_port, uint16_t local_port, std::function<void(std::string)> on_received)
+    AsioUdpClient(asio::io_context& io_context, std::string server_ip, std::string server_port, uint16_t local_port, std::function<void(std::string)> on_received)
         : m_io_context(io_context)
-        , m_server_port(server_port)
-        , m_server_ip(server_ip)
+        , m_server_port(std::move(server_port))
+        , m_server_ip(std::move(server_ip))
         , m_local_port(local_port)
         , m_socket { io_context }
-        , m_on_received { on_received }
-    {
-    }
-
-    ~AsioUdpClient()
+        , m_on_received { std::move(on_received) }
     {
     }
 
@@ -187,7 +184,7 @@ public:
         return true;
     }
 
-    bool is_initialized() const
+    [[nodiscard]] bool is_initialized() const
     {
         return m_socket.is_open();
     }
@@ -243,7 +240,7 @@ private:
     const uint16_t m_local_port;
 
     TxBufferT m_tx_buffer;
-    std::array<char, RX_BUFFER_SIZE> m_rx_buffer;
+    std::array<char, RX_BUFFER_SIZE> m_rx_buffer {};
     asio::ip::udp::socket m_socket;
     std::function<void(std::string)> m_on_received;
     asio::ip::udp::endpoint m_destination_endpoint;

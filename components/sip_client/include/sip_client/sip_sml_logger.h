@@ -23,20 +23,20 @@ namespace sml = boost::sml;
 struct Logger
 {
     template <class SM, class TEvent>
-    void log_process_event(const TEvent&)
+    void log_process_event(const TEvent& /*unused*/)
     {
         ESP_LOGI(TAG, "[%s][process_event] %s\n", sml::aux::get_type_name<SM>(), sml::aux::get_type_name<TEvent>());
     }
 
     template <class SM, class TGuard, class TEvent>
-    void log_guard(const TGuard&, const TEvent&, bool result)
+    void log_guard(const TGuard& /*unused*/, const TEvent& /*unused*/, bool result)
     {
         ESP_LOGI(TAG, "[%s][guard] %s %s %s\n", sml::aux::get_type_name<SM>(), sml::aux::get_type_name<TGuard>(),
             sml::aux::get_type_name<TEvent>(), (result ? "[OK]" : "[Reject]"));
     }
 
     template <class SM, class TAction, class TEvent>
-    void log_action(const TAction&, const TEvent&)
+    void log_action(const TAction& /*unused*/, const TEvent& /*unused*/)
     {
         ESP_LOGI(TAG, "[%s][action] %s %s\n", sml::aux::get_type_name<SM>(), sml::aux::get_type_name<TAction>(),
             sml::aux::get_type_name<TEvent>());
