@@ -96,16 +96,16 @@ private:
 
 using TxBufferT = Buffer<TX_BUFFER_SIZE>;
 
+#ifndef COMPILE_FOR_NATIVE
 class TcpIpAdapterInitializer
 {
 public:
     TcpIpAdapterInitializer()
     {
-#ifndef COMPILE_FOR_NATIVE
         ESP_ERROR_CHECK(esp_netif_init());
-#endif
     }
 };
+#endif /* COMPILE_FOR_NATIVE */
 
 class AsioUdpClient
 {
@@ -233,7 +233,9 @@ public:
     }
 
 private:
+#ifndef COMPILE_FOR_NATIVE
     TcpIpAdapterInitializer m_initializer;
+#endif /* COMPILE_FOR_NATIVE */
     asio::io_context& m_io_context;
     const std::string m_server_port;
     std::string m_server_ip;

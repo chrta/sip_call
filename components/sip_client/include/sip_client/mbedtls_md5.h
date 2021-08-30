@@ -31,6 +31,11 @@ public:
         mbedtls_md5_free(&m_ctx);
     }
 
+    MbedtlsMd5(const MbedtlsMd5&) = delete;
+    MbedtlsMd5& operator=(const MbedtlsMd5&) = delete;
+    MbedtlsMd5(const MbedtlsMd5&&) = delete;
+    MbedtlsMd5& operator=(const MbedtlsMd5&&) = delete;
+
     void start()
     {
         mbedtls_md5_starts_ret(&m_ctx);

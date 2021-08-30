@@ -61,9 +61,6 @@ public:
     {
     }
 
-    ~SipClientInt()
-    = default;
-
     bool init()
     {
         bool result_rtp = m_rtp_socket.init();
