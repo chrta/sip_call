@@ -1,7 +1,7 @@
 # Created for/with clang-tidy-12
 # Call with run-clang-tidy.py anfter creating a compilation database
 ---
-Checks:          'bugprone-*,cert-*,clang-diagnostic-*,clang-analyzer-*,concurrency-mt-unsafe,cppcoreguidelines-*,hicpp-*,llvm-else-after-return,misc-*,modernize-*,performance-*,readability-*,-modernize-use-trailing-return-type'
+Checks:          'bugprone-*,cert-*,clang-diagnostic-*,clang-analyzer-*,concurrency-mt-unsafe,cppcoreguidelines-*,hicpp-*,llvm-else-after-return,misc-*,modernize-*,performance-*,readability-*,-modernize-use-trailing-return-type,-cppcoreguidelines-pro-bounds-constant-array-index,-cppcoreguidelines-pro-type-vararg,-hicpp-vararg,-cppcoreguidelines-pro-bounds-array-to-pointer-decay,-hicpp-no-array-decay,-cppcoreguidelines-macro-usage,-cert-dcl50-cpp'
 WarningsAsErrors: ''
 # do not match smp.hpp
 # all other headers are *.h
