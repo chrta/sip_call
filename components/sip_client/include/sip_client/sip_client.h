@@ -48,7 +48,7 @@ public:
         return m_sip.init();
     }
 
-    bool is_initialized() const
+    [[nodiscard]] bool is_initialized() const
     {
         return m_sip.is_initialized();
     }

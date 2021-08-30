@@ -47,5 +47,5 @@ public:
     }
 
 private:
-    mbedtls_md5_context m_ctx;
+    mbedtls_md5_context m_ctx {};
 };
