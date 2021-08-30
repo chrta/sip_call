@@ -74,7 +74,9 @@ public:
         //TODO: remove this here, do it properly with boost::sml
         if (result_rtp && result_sip)
         {
-            m_sm.process_event(ev_start {});
+            asio::dispatch(m_io_context, [this]() {
+                this->m_sm.process_event(ev_start {});
+            });
         }
 
         return result_rtp && result_sip;
@@ -135,7 +137,9 @@ public:
 
     void deinit()
     {
+        ESP_LOGI(TAG, "Deinit");
         m_socket.deinit();
+        m_rtp_socket.deinit();
     }
 
     //send initial register request

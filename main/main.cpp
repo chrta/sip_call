@@ -86,10 +86,26 @@ static std::string get_local_ip_address(const esp_ip4_addr_t* got_ip)
     return ip_to_string(got_ip);
 }
 
+using ButtonInputHandlerT = ButtonInputHandler<SipClientT, BELL_GPIO_PIN, RING_DURATION_TIMEOUT_MSEC>;
+
+struct handlers_t
+{
+    SipClientT* client;
+    ButtonInputHandlerT* button_input_handler;
+    asio::io_context* io_context;
+} handlers;
+/* This global handlers instance is only necessary because using event_data in event_handler is not possible */
+
 static void event_handler(void* arg, esp_event_base_t event_base,
     int32_t event_id, void* event_data)
 {
-    SipClientT* client = static_cast<SipClientT*>(arg);
+    /* Handlers from event_data does not work. The members are invalid somehow
+     * handlers_t* ctx = static_cast<handlers_t*>(event_data); would be better,
+     * because in that case no global handlers would be necessary.
+     */
+    handlers_t* ctx = &handlers;
+
+    ESP_LOGI(TAG, "Event: %s %d", event_base, event_id);
 
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START)
     {
@@ -97,20 +113,31 @@ static void event_handler(void* arg, esp_event_base_t event_base,
     }
     else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED)
     {
-        client->deinit();
+        if (ctx == nullptr || ctx->client == nullptr || ctx->io_context == nullptr)
+        {
+            return;
+        }
+
+        ESP_LOGI(TAG, "Wifi STA disconnected, deinit client");
+        ctx->client->deinit();
+        ctx->io_context->stop();
         /* This is a workaround as ESP32 WiFi libs don't currently auto-reassociate. */
         esp_wifi_connect();
         xEventGroupClearBits(wifi_event_group, CONNECTED_BIT);
     }
     else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP)
     {
+        if (ctx == nullptr || ctx->client == nullptr)
+        {
+            return;
+        }
         ip_event_got_ip_t* event = (ip_event_got_ip_t*)event_data;
         ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
         esp_ip4_addr_t* got_ip = &event->ip_info.ip;
 #ifdef CONFIG_SIP_SERVER_IS_DHCP_SERVER
-        client->set_server_ip(get_gw_ip_address(got_ip));
+        ctx->client->set_server_ip(get_gw_ip_address(got_ip));
 #endif //CONFIG_SIP_SERVER_IS_DHCP_SERVER
-        client->set_my_ip(get_local_ip_address(got_ip));
+        ctx->client->set_my_ip(get_local_ip_address(got_ip));
         xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
     }
 }
@@ -127,9 +154,6 @@ static void initialize_wifi()
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
     ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
 
-    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL));
-    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL));
-
     wifi_config_t wifi_config = {};
     strncpy((char*)wifi_config.sta.ssid, CONFIG_WIFI_SSID, sizeof(wifi_config.sta.ssid));
     strncpy((char*)wifi_config.sta.password, CONFIG_WIFI_PASSWORD, sizeof(wifi_config.sta.password));
@@ -145,29 +169,26 @@ static void initialize_wifi()
     ESP_LOGI(TAG, "Setting WiFi configuration SSID %s...", wifi_config.sta.ssid);
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
+
+    /* start wifi later */
+}
+
+static void start_wifi()
+{
     ESP_ERROR_CHECK(esp_wifi_start());
 
     ESP_LOGI(TAG, "esp_wifi_set_ps().");
     esp_wifi_set_ps(DEFAULT_PS_MODE);
 }
 
-using ButtonInputHandlerT = ButtonInputHandler<SipClientT, BELL_GPIO_PIN, RING_DURATION_TIMEOUT_MSEC>;
-
-struct handlers_t
-{
-    SipClientT& client;
-    ButtonInputHandlerT& button_input_handler;
-    asio::io_context& io_context;
-};
-
 static void sip_task(void* pvParameters)
 {
     handlers_t* ctx = static_cast<handlers_t*>(pvParameters);
-    SipClientT& client = ctx->client;
+    SipClientT& client = *ctx->client;
 
     static std::tuple handlers {
         SipEventHandlerLog {},
-        SipEventHandlerButton { ctx->button_input_handler },
+        SipEventHandlerButton { *ctx->button_input_handler },
 #ifdef CONFIG_ACTUATOR_ENABLED
         SipEventHandlerActuator<static_cast<gpio_num_t>(CONFIG_ACTUATOR_OUTPUT_GPIO),
             CONFIG_ACTUATOR_ACTIVE_HIGH,
@@ -197,7 +218,9 @@ static void sip_task(void* pvParameters)
             });
         }
 
-        ctx->io_context.run();
+        ctx->io_context->run();
+        // The io_context was stopped, to be able to call run() again later, restart must be called.
+        ctx->io_context->restart();
     }
 }
 
@@ -208,19 +231,22 @@ extern "C" void app_main(void)
     ESP_ERROR_CHECK(nvs_flash_init());
     initialize_wifi();
 
-    // reseed after initializing wifi
-    std::srand(esp_random());
-
-    // Execute io_context.run() only from one thread
     asio::io_context io_context { 1 };
 
     SipClientT client { io_context, CONFIG_SIP_USER, CONFIG_SIP_PASSWORD, CONFIG_SIP_SERVER_IP, CONFIG_SIP_SERVER_PORT, CONFIG_LOCAL_IP };
     ButtonInputHandler<SipClientT, BELL_GPIO_PIN, RING_DURATION_TIMEOUT_MSEC> button_input_handler(client);
 
-    handlers_t handlers { client, button_input_handler, io_context };
+    handlers.client = &client;
+    handlers.button_input_handler = &button_input_handler;
+    handlers.io_context = &io_context;
 
-    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, &client));
-    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, &client));
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, &handlers, nullptr));
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, &handlers, nullptr));
+
+    start_wifi();
+
+    // reseed after initializing wifi
+    std::srand(esp_random());
 
     // without pinning this to core 0, funny stuff (crashes) happen,
     // because some c++ objects are not fully initialized
