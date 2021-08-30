@@ -23,13 +23,13 @@
 
 #include <cstring>
 
-#define CONFIG_SIP_USER "620"
-#define CONFIG_SIP_PASSWORD "secret"
-#define CONFIG_SIP_SERVER_IP "192.168.179.1"
-#define CONFIG_SIP_SERVER_PORT "5060"
-#define CONFIG_LOCAL_IP "192.168.170.30"
+constexpr char const* CONFIG_SIP_USER = "620";
+constexpr char const* CONFIG_SIP_PASSWORD = "secret";
+constexpr char const* CONFIG_SIP_SERVER_IP = "192.168.179.1";
+constexpr char const* CONFIG_SIP_SERVER_PORT = "5060";
+constexpr char const* CONFIG_LOCAL_IP = "192.168.170.30";
 
-static const char* TAG = "main";
+static constexpr char const* TAG = "main";
 
 using SipClientT = SipClient<AsioUdpClient, MbedtlsMd5>;
 
