@@ -100,7 +100,7 @@ struct sip_states
             "registered"_s + event<ev_rx_invite> / action_rx_invite = "call_established"_s,
             "registered"_s + event<ev_start> / action_register_unauth = "waiting_for_auth_reply"_s,
             "calling"_s + event<ev_401_unauthorized> / action_send_invite = "calling"_s,
-            "calling"_s + event<ev_cancel_call> / action_cancel_call = "calling"_s,
+            "calling"_s + event<ev_cancel_call> / action_cancel_call = "cancelling"_s,
             "calling"_s + event<ev_183_session_progress> = "calling"_s,
             "calling"_s + event<ev_100_trying> = "calling"_s,
             "calling"_s + event<ev_200_ok> / action_call_established = "call_established"_s,
@@ -113,6 +113,8 @@ struct sip_states
             "call_established"_s + event<ev_200_ok> = X,
             "call_established"_s + event<ev_reregister> / action_retry_reregistered = "call_established"_s,
             "call_established"_s + event<ev_start> / action_register_unauth = "waiting_for_auth_reply"_s,
+            "cancelling"_s + event<ev_200_ok> = "cancelling"_s,
+            "cancelling"_s + event<ev_487_request_cancelled> / action_call_cancelled = "registered"_s,
             "calling"_s + event<ev_200_ok> = X);
     }
 };
