@@ -346,6 +346,9 @@ private:
             m_to_tag = packet.get_to_tag();
         }
 
+        /* TODO: only copy record route, when not empty */
+        m_record_route = packet.get_record_route();
+
         if ((reply == SipPacket::Status::UNAUTHORIZED_401) || (reply == SipPacket::Status::PROXY_AUTH_REQ_407))
         {
             m_sm.process_event(ev_401_unauthorized {});
@@ -586,6 +589,17 @@ private:
         {
             stream << "To: <" << to_uri << ">\r\n";
         }
+        if (command == "ACK")
+        {
+            for (auto it = std::crbegin(m_record_route); it != std::crend(m_record_route); ++it)
+            {
+                if (it->empty())
+                {
+                    continue;
+                }
+                stream << "Route: " << *it << "\r\n";
+            }
+        }
     }
 
     void send_sip_reply_header(const std::string& code, const SipPacket& packet, TxBufferT& stream)
@@ -697,6 +711,8 @@ private:
     std::string m_to_uri;
     std::string m_to_contact;
     std::string m_to_tag;
+
+    SipPacket::RecordRouteT m_record_route;
 
     uint32_t m_sip_sequence_number;
     uint32_t m_call_id;
