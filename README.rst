@@ -13,6 +13,7 @@ Tested with:
 * AVM Fritzbox 7390
 * AVM Fritzbox 7490 (Firmware 7.27)
 * AVM Fritzbox 7590
+* local FreeSWITCH installation
 
 Programming
 -----------
