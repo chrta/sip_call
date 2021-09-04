@@ -45,18 +45,19 @@ struct handlers_t
     asio::io_context& io_context;
 };
 
-static void sip_task(void* pvParameters) __attribute__((noreturn));
+static void sip_task(void* pvParameters);
 
 void sip_task(void* pvParameters)
 {
     auto* ctx = static_cast<handlers_t*>(pvParameters);
     SipClientT& client = ctx->client;
+    bool quit = false;
 
     static std::tuple handlers {
         SipEventHandlerLog {}
     };
 
-    for (;;)
+    for (; !quit;)
     {
         if (!client.is_initialized())
         {
@@ -73,7 +74,7 @@ void sip_task(void* pvParameters)
             });
         }
 
-        ctx->input.do_read([&client](char c) {
+        ctx->input.do_read([&client, &quit, ctx](char c) {
             ESP_LOGI(TAG, "keyinput=%c", c);
             if (c == 'c')
             {
@@ -82,6 +83,12 @@ void sip_task(void* pvParameters)
             else if (c == 'd')
             {
                 client.request_cancel();
+            }
+            else if (c == 'q')
+            {
+                quit = true;
+                client.deinit();
+                ctx->io_context.stop();
             }
         });
         ctx->io_context.run();
