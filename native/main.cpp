@@ -21,6 +21,8 @@
 #include "sip_client/sip_client.h"
 #include "sip_client/sip_client_event_handler.h"
 
+#include "keyboard_input.h"
+
 #include <cstring>
 
 constexpr char const* CONFIG_SIP_USER = "620";
@@ -29,6 +31,9 @@ constexpr char const* CONFIG_SIP_SERVER_IP = "192.168.179.1";
 constexpr char const* CONFIG_SIP_SERVER_PORT = "5060";
 constexpr char const* CONFIG_LOCAL_IP = "192.168.170.30";
 
+constexpr char const* CONFIG_CALL_TARGET_USER = "9170";
+constexpr char const* CONFIG_CALLER_DISPLAY_MESSAGE = "CMDLine";
+
 static constexpr char const* TAG = "main";
 
 using SipClientT = SipClient<AsioUdpClient, MbedtlsMd5>;
@@ -36,6 +41,7 @@ using SipClientT = SipClient<AsioUdpClient, MbedtlsMd5>;
 struct handlers_t
 {
     SipClientT& client;
+    KeyboardInput& input;
     asio::io_context& io_context;
 };
 
@@ -67,6 +73,17 @@ void sip_task(void* pvParameters)
             });
         }
 
+        ctx->input.do_read([&client](char c) {
+            ESP_LOGI(TAG, "keyinput=%c", c);
+            if (c == 'c')
+            {
+                client.request_ring(CONFIG_CALL_TARGET_USER, CONFIG_CALLER_DISPLAY_MESSAGE);
+            }
+            else if (c == 'd')
+            {
+                client.request_cancel();
+            }
+        });
         ctx->io_context.run();
     }
 }
@@ -81,7 +98,9 @@ int main(int /*unused*/, char** /*unused*/)
 
     SipClientT client { io_context, CONFIG_SIP_USER, CONFIG_SIP_PASSWORD, CONFIG_SIP_SERVER_IP, CONFIG_SIP_SERVER_PORT, CONFIG_LOCAL_IP };
 
-    handlers_t handlers { client, io_context };
+    KeyboardInput input { io_context };
+
+    handlers_t handlers { client, input, io_context };
 
     sip_task(&handlers);
 }
