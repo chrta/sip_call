@@ -2,3 +2,7 @@ CONFIG_ESP_MAIN_TASK_STACK_SIZE=16000
 
 # reset on watchdog error
 CONFIG_ESP_TASK_WDT_PANIC=y
+
+# set custom partition layout based on Single Factory app, no OTA
+# CONFIG_PARTITION_TABLE_SINGLE_APP is not set
+CONFIG_PARTITION_TABLE_CUSTOM=y
