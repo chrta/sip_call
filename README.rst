@@ -11,7 +11,7 @@ is started again.
 Tested with:
 
 * AVM Fritzbox 7390
-* AVM Fritzbox 7490 (Firmware 7.27)
+* AVM Fritzbox 7490 (Firmware 7.28)
 * AVM Fritzbox 7590
 * local FreeSWITCH installation
 
@@ -20,7 +20,7 @@ Programming
 
 The source code is mixed C and C++.
 
-This application is to be used with `Espressif IoT Development Framework`_ (ESP-IDF). It is tested with version v4.3 (rev c9646ff0beffc86d2c6d1bfbad34da16e328e0e3)
+This application is to be used with `Espressif IoT Development Framework`_ (ESP-IDF). It is tested with version v4.3.1 (rev 2e74914051d14ec2290fc751a8486fb51d73a31e)
 
 Please check ESP-IDF docs for getting started instructions.
 
@@ -54,7 +54,7 @@ Code formatting
 Clang-format is used to format the code. The settings are stored in .clangformat. The format of external files, e.g.
 components/sip_client/include/boost/sml.hpp should not be changed. To run clang-format (e.g. version 12) over all files::
 
-  find . -regex '.*\.\(cpp\|hpp\|cc\|cxx\|h\)' -exec clang-format -style=file -i {} \;
+  find . -regex '.*\.\(cpp\|cc\|cxx\|h\)' -exec clang-format -style=file -i {} \;
 
 Hardware
 --------
