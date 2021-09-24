@@ -35,6 +35,17 @@ The project now uses cmake, so after initializing your environment with the rele
   idf.py build
   idf.py flash monitor
 
+To build for another ESP32 soc, e.g. the ESP32C3::
+
+  cd <this project's root dir>
+  idf.py set-target esp32c3
+  idf.py menuconfig
+  idf.py build
+  idf.py flash monitor
+
+See `Selecting soc build target`_ for more details.
+
+
 To build this project for the pc (linux, e.g. ubuntu or fedora), a sample (not all features are supported, yet)::
 
   mkdir <build dir>
@@ -86,3 +97,4 @@ On the AVM Fritzbox the number \*\*9 can be used to let all connected phones rin
 
 
 .. _`Espressif IoT Development Framework`: https://esp-idf.readthedocs.io/
+.. _`Selecting soc build target`: https://docs.espressif.com/projects/esp-idf/en/v4.3.1/esp32c3/api-guides/build-system.html#selecting-the-target

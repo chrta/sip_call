@@ -29,11 +29,13 @@ endchoice
 config BELL_INPUT_GPIO
     int "Bell input GPIO number"
         range 0 39
+        default 9 if IDF_TARGET_ESP32C3
         default 0
         help
                 GPIO number (IOxx) to read the bell state from.
                 Some GPIOs are used for other purposes (flash connections, etc.) and cannot be used.
-                GPIO 0 is also the boot pin, so the BOOT button can be used for testing.
+                GPIO 0 is also the boot pin on ESP32, so the BOOT button can be used for testing.
+                GPIO 9 is used on ESP-C3-32S-Kit as BOOT button.
 
 rsource 'Kconfig.actuator'
 
