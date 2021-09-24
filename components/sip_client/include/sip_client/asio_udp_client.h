@@ -61,24 +61,13 @@ public:
         strncat(m_buffer.data(), str.c_str(), m_buffer.size() - strlen(m_buffer.data()) - 1);
         return *this;
     }
-    Buffer<SIZE>& operator<<(uint16_t i)
-    {
-        snprintf(m_buffer.data() + strlen(m_buffer.data()), m_buffer.size() - strlen(m_buffer.data()), "%d", i);
-        return *this;
-    }
-    Buffer<SIZE>& operator<<(uint32_t i)
-    {
-        snprintf(m_buffer.data() + strlen(m_buffer.data()), m_buffer.size() - strlen(m_buffer.data()), "%d", i);
-        return *this;
-    }
 
-#ifdef COMPILE_FOR_NATIVE
-    Buffer<SIZE>& operator<<(size_t i)
+    template <typename T>
+    typename std::enable_if<std::is_unsigned_v<T>, Buffer<SIZE>&>::type operator<<(T i)
     {
-        snprintf(m_buffer.data() + strlen(m_buffer.data()), m_buffer.size() - strlen(m_buffer.data()), "%lu", i);
+        snprintf(m_buffer.data() + strlen(m_buffer.data()), m_buffer.size() - strlen(m_buffer.data()), "%u", static_cast<unsigned>(i));
         return *this;
     }
-#endif
 
     [[nodiscard]] const char* data() const
     {
