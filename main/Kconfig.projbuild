@@ -37,6 +37,13 @@ config BELL_INPUT_GPIO
                 GPIO 0 is also the boot pin on ESP32, so the BOOT button can be used for testing.
                 GPIO 9 is used on ESP-C3-32S-Kit as BOOT button.
 
+config BELL_INPUT_ACTIVE_HIGH
+    bool "Bell input active high type"
+        default n
+        help
+            This is about the hardware configuration of your setup. Active high (true) means the bell input is set to true/high when it is triggered.
+            Active low (false) means the bell input is set to false/low when it is triggered.
+
 rsource 'Kconfig.actuator'
 
 config RING_DURATION

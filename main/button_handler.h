@@ -61,7 +61,7 @@ enum class Event
     CALL_END
 };
 
-template <class SipClientT, gpio_num_t GPIO_PIN, int RING_DURATION_TIMEOUT_MSEC>
+template <class SipClientT, gpio_num_t GPIO_PIN, bool ACTIVE_HIGH, int RING_DURATION_TIMEOUT_MSEC>
 class ButtonInputHandler
 {
 public:
@@ -76,7 +76,7 @@ public:
         gpioConfig.mode = GPIO_MODE_INPUT;
         gpioConfig.pull_up_en = GPIO_PULLUP_ENABLE;
         gpioConfig.pull_down_en = GPIO_PULLDOWN_DISABLE;
-        gpioConfig.intr_type = GPIO_INTR_POSEDGE;
+        gpioConfig.intr_type = ( ACTIVE_HIGH ? GPIO_INTR_POSEDGE : GPIO_INTR_NEGEDGE );
         gpio_config(&gpioConfig);
     }
 
@@ -124,7 +124,7 @@ private:
     SipClientT& m_client;
     QueueHandle_t m_queue;
 
-    using ButtonInputHandlerT = ButtonInputHandler<SipClientT, GPIO_PIN, RING_DURATION_TIMEOUT_MSEC>;
+    using ButtonInputHandlerT = ButtonInputHandler<SipClientT, GPIO_PIN, ACTIVE_HIGH, RING_DURATION_TIMEOUT_MSEC>;
 
     static void int_handler(void* args)
     {

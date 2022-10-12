@@ -86,7 +86,7 @@ static std::string get_local_ip_address(const esp_ip4_addr_t* got_ip)
     return ip_to_string(got_ip);
 }
 
-using ButtonInputHandlerT = ButtonInputHandler<SipClientT, BELL_GPIO_PIN, RING_DURATION_TIMEOUT_MSEC>;
+using ButtonInputHandlerT = ButtonInputHandler<SipClientT, BELL_GPIO_PIN, CONFIG_BELL_INPUT_ACTIVE_HIGH, RING_DURATION_TIMEOUT_MSEC>;
 
 struct handlers_t
 {
@@ -191,7 +191,11 @@ static void sip_task(void* pvParameters)
         SipEventHandlerButton { *ctx->button_input_handler },
 #ifdef CONFIG_ACTUATOR_ENABLED
         SipEventHandlerActuator<static_cast<gpio_num_t>(CONFIG_ACTUATOR_OUTPUT_GPIO),
-            CONFIG_ACTUATOR_ACTIVE_HIGH,
+#ifdef CONFIG_ACTUATOR_ACTIVE_HIGH
+            true,
+#else
+            false,
+#endif
             CONFIG_ACTUATOR_SWITCHING_DURATION,
             CONFIG_ACTUATOR_PHONE_BUTTON[0]> {},
 #endif /* ACTUATOR_ENABLED */
@@ -234,7 +238,7 @@ extern "C" void app_main(void)
     asio::io_context io_context { 1 };
 
     SipClientT client { io_context, CONFIG_SIP_USER, CONFIG_SIP_PASSWORD, CONFIG_SIP_SERVER_IP, CONFIG_SIP_SERVER_PORT, CONFIG_LOCAL_IP };
-    ButtonInputHandler<SipClientT, BELL_GPIO_PIN, RING_DURATION_TIMEOUT_MSEC> button_input_handler(client);
+    ButtonInputHandler<SipClientT, BELL_GPIO_PIN, CONFIG_BELL_INPUT_ACTIVE_HIGH, RING_DURATION_TIMEOUT_MSEC> button_input_handler(client);
 
     handlers.client = &client;
     handlers.button_input_handler = &button_input_handler;
