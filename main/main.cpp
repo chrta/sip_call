@@ -191,7 +191,11 @@ static void sip_task(void* pvParameters)
         SipEventHandlerButton { *ctx->button_input_handler },
 #ifdef CONFIG_ACTUATOR_ENABLED
         SipEventHandlerActuator<static_cast<gpio_num_t>(CONFIG_ACTUATOR_OUTPUT_GPIO),
-            CONFIG_ACTUATOR_ACTIVE_HIGH,
+#ifdef CONFIG_ACTUATOR_ACTIVE_HIGH
+            true,
+#else
+            false,
+#endif
             CONFIG_ACTUATOR_SWITCHING_DURATION,
             CONFIG_ACTUATOR_PHONE_BUTTON[0]> {},
 #endif /* ACTUATOR_ENABLED */
