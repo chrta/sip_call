@@ -38,17 +38,17 @@ public:
 
     void start()
     {
-        mbedtls_md5_starts_ret(&m_ctx);
+        mbedtls_md5_starts(&m_ctx);
     }
 
     void update(const std::string& input)
     {
-        mbedtls_md5_update_ret(&m_ctx, reinterpret_cast<const unsigned char*>(input.c_str()), input.size());
+        mbedtls_md5_update(&m_ctx, reinterpret_cast<const unsigned char*>(input.c_str()), input.size());
     }
 
     void finish(unsigned char hash[16])
     {
-        mbedtls_md5_finish_ret(&m_ctx, hash);
+        mbedtls_md5_finish(&m_ctx, hash);
     }
 
 private:
