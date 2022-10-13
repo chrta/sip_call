@@ -268,9 +268,9 @@ private:
                     m_contact = std::string(open_pos + 1, close_pos);
 
                     /* in the SIP 200 OK finishing a successful REGISTER, the contact line might also
-		     * contain the expire information from the server, e.g.
-		     * Contact: <...>;expires=300
-		     */
+                     * contain the expire information from the server, e.g.
+                     * Contact: <...>;expires=300
+                     */
                     const char* expires_pos = strstr(close_pos + 1, ";expires=");
                     if (expires_pos != nullptr)
                     {
