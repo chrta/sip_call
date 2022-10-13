@@ -19,11 +19,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 
-extern "C" {
-#include "esp_netif.h"
-#include "esp_wifi_default.h"
-}
-
 #include "esp_event.h"
 #include "esp_system.h"
 #include "esp_wifi.h"
@@ -105,7 +100,7 @@ static void event_handler(void* arg, esp_event_base_t event_base,
      */
     handlers_t* ctx = &handlers;
 
-    ESP_LOGI(TAG, "Event: %s %d", event_base, event_id);
+    ESP_LOGI(TAG, "Event: %s %" PRIi32 "", event_base, event_id);
 
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START)
     {
@@ -210,7 +205,7 @@ static void sip_task(void* pvParameters)
             if (!result)
             {
                 ESP_LOGI(TAG, "Waiting to try again...");
-                vTaskDelay(2000 / portTICK_RATE_MS);
+                vTaskDelay(2000 / portTICK_PERIOD_MS);
                 continue;
             }
 
@@ -229,7 +224,16 @@ extern "C" void app_main(void)
 {
     // seed for std::rand() used in the sip client
     std::srand(esp_random());
-    ESP_ERROR_CHECK(nvs_flash_init());
+
+    // Initialize NVS
+    esp_err_t ret = nvs_flash_init();
+    if ((ret == ESP_ERR_NVS_NO_FREE_PAGES) || (ret == ESP_ERR_NVS_NEW_VERSION_FOUND))
+    {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(ret);
+
     initialize_wifi();
 
     asio::io_context io_context { 1 };
