@@ -11,6 +11,6 @@ ninja
 cd ..
 mkdir build_clang
 cd build_clang
-CC=clang-12 CXX=clang++-12 cmake ../native -G Ninja -D CMAKE_CXX_FLAGS=-DASIO_STANDALONE
+CC=clang-15 CXX=clang++-15 cmake ../native -G Ninja -D CMAKE_CXX_FLAGS=-DASIO_STANDALONE
 ninja
 cd ..
