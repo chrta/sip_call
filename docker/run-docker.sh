@@ -11,7 +11,8 @@ apt-get update \
 	       gnupg \
 	       software-properties-common \
 	       wget \
-	       libmbedtls-dev
+	       libmbedtls-dev \
+	       g++
 
 # wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | apt-key add -
 # apt-add-repository 'deb https://apt.kitware.com/ubuntu/ xenial main'
