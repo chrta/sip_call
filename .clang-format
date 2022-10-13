@@ -14,4 +14,7 @@ BraceWrapping:
   BeforeElse:      true
   IndentBraces:    false
 BreakBeforeBraces: Custom
+SpacesInLineCommentPrefix:
+  Minimum: 1
+  Maximum: 1
 ...
