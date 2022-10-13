@@ -1,5 +1,6 @@
 idf_component_register(SRCS ./main.cpp
-                       REQUIRES nvs_flash sip_client)
+                       REQUIRES driver esp_netif esp_wifi mbedtls
+		                nvs_flash sip_client)
 
 #INCLUDE_DIRS include                       # Edit following two lines to set component requirements (see docs)
 #                       REQUIRES )
