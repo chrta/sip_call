@@ -13,12 +13,13 @@ config ACTUATOR_OUTPUT_GPIO
             GPIO number (IOxx) to trigger the actuator for e.g. a door opener
             GPIOs 35-39 are input-only so cannot be used as outputs.
 
-config ACTUATOR_ACTIVE_HIGH
-    bool "Actuator output active high type"
-        default y
+config ACTUATOR_ACTIVE_LEVEL
+    int "Actuator output active level"
+        default 1
+        range 0 1
         help
-            This is about the hardware configuration of your setup. Active high (true) means the actuator is set to true/high when it is triggered.
-            Active low (false) means the actuator is set to false/low when it is triggered.
+            This is about the hardware configuration of your setup. Active high (1) means the actuator is set to true/high when it is triggered.
+            Active low (0) means the actuator is set to false/low when it is triggered.
 
 config ACTUATOR_SWITCHING_DURATION
     int "Actuator switching duration in milliseconds"
