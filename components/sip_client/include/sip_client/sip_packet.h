@@ -208,7 +208,7 @@ private:
         do
         {
             auto length = static_cast<size_t>(end_position - start_position);
-            if (length == 0) //line only contains the line ending
+            if (length == 0) // line only contains the line ending
             {
                 ESP_LOGV(TAG, "Valid end of header detected");
                 if (end_position + LINE_ENDING_LEN >= m_buffer + m_buffer_length)
@@ -225,8 +225,8 @@ private:
             char* next_start_position = end_position + LINE_ENDING_LEN;
             line_number++;
 
-            //create a proper null terminated c string
-            //from here on string functions may be used!
+            // create a proper null terminated c string
+            // from here on string functions may be used!
             memset(end_position, 0, LINE_ENDING_LEN);
             ESP_LOGV(TAG, "Parsing line: %s", start_position);
 
@@ -240,7 +240,7 @@ private:
                 || (strncmp(PROXY_AUTHENTICATE, start_position, strlen(PROXY_AUTHENTICATE)) == 0))
             {
                 ESP_LOGV(TAG, "Detect authenticate line");
-                //read realm and nonce from authentication line
+                // read realm and nonce from authentication line
                 if (!read_param(start_position, REALM, m_realm))
                 {
                     ESP_LOGW(TAG, "Failed to read realm in authenticate line");
@@ -339,16 +339,16 @@ private:
 
             else if (line_number == 1)
             {
-                //first line, but no response
+                // first line, but no response
                 m_method = convert_method(start_position);
             }
 
-            //go to next line
+            // go to next line
             start_position = next_start_position;
             end_position = strstr(start_position, LINE_ENDING);
         } while (end_position != nullptr);
 
-        //no line only containing the line ending found :(
+        // no line only containing the line ending found :(
         return false;
     }
 
@@ -371,15 +371,15 @@ private:
         do
         {
             auto length = static_cast<size_t>(end_position - start_position);
-            if (length == 0) //line only contains the line ending
+            if (length == 0) // line only contains the line ending
             {
                 return true;
             }
 
             char* next_start_position = end_position + LINE_ENDING_LEN;
 
-            //create a proper null terminated c string
-            //from here on string functions may be used!
+            // create a proper null terminated c string
+            // from here on string functions may be used!
             memset(end_position, 0, LINE_ENDING_LEN);
             ESP_LOGV(TAG, "Parsing line: %s", start_position);
 
@@ -408,7 +408,7 @@ private:
                 m_cip = std::string(start_position + strlen(CIP));
             }
 
-            //go to next line
+            // go to next line
             start_position = next_start_position;
             end_position = strstr(start_position, LINE_ENDING);
         } while (end_position != nullptr);

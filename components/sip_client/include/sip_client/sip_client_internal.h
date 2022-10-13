@@ -66,7 +66,7 @@ public:
         bool result_rtp = m_rtp_socket.init();
         bool result_sip = m_socket.init();
 
-        //TODO: remove this here, do it properly with boost::sml
+        // TODO: remove this here, do it properly with boost::sml
         if (result_rtp && result_sip)
         {
             asio::dispatch(m_io_context, [this]() {
@@ -137,10 +137,10 @@ public:
         m_rtp_socket.deinit();
     }
 
-    //send initial register request
+    // send initial register request
     void register_unauth()
     {
-        //sending REGISTER without auth
+        // sending REGISTER without auth
         m_tag = std::rand() % 2147483647;
         m_branch = std::rand() % 2147483647;
         send_sip_register();
@@ -148,11 +148,11 @@ public:
         m_branch = std::rand() % 2147483647;
     }
 
-    //send  register request
+    // send  register request
     void register_auth()
     {
         m_sip_sequence_number++;
-        //sending REGISTER with auth
+        // sending REGISTER with auth
         compute_auth_response("REGISTER", "sip:" + m_server_ip);
         send_sip_register();
     }
@@ -187,7 +187,7 @@ public:
 
     void send_invite(const ev_401_unauthorized& /*unused*/)
     {
-        //first ack the prev sip 401/407 packet
+        // first ack the prev sip 401/407 packet
         send_sip_ack();
 
         m_sdp_session_id = static_cast<uint32_t>(std::rand());
@@ -222,14 +222,14 @@ public:
         ESP_LOGD(TAG, "Sending cancel request");
         send_sip_cancel();
 
-        //TODO: if call in progress, send bye
-        //ESP_LOGD(TAG, "Sending bye request");
-        //send_sip_bye();
+        // TODO: if call in progress, send bye
+        // ESP_LOGD(TAG, "Sending bye request");
+        // send_sip_bye();
     }
 
     void handle_invite(const ev_rx_invite& /*unused*/)
     {
-        //received an invite, answered it already with ok, so new call is established, because someone called us
+        // received an invite, answered it already with ok, so new call is established, because someone called us
         if (m_event_handler)
         {
             m_event_handler(m_sip_client, SipClientEvent { SipClientEvent::Event::CALL_START });
@@ -238,7 +238,7 @@ public:
 
     void call_established()
     {
-        //ack to ok after invite
+        // ack to ok after invite
         send_sip_ack();
         if (m_event_handler)
         {
@@ -516,23 +516,23 @@ private:
         {
             send_sip_header("ACK", m_uri, m_to_uri, tx_buffer);
         }
-        //std::string m_sdp_session_o;
-        //std::string m_sdp_session_s;
-        //std::string m_sdp_session_c;
-        //m_tx_sdp_buffer.clear();
-        //TODO: populate sdp body
-        //m_tx_sdp_buffer << "v=0\r\n"
+        // std::string m_sdp_session_o;
+        // std::string m_sdp_session_s;
+        // std::string m_sdp_session_c;
+        // m_tx_sdp_buffer.clear();
+        // TODO: populate sdp body
+        // m_tx_sdp_buffer << "v=0\r\n"
         //	              << m_sdp_session_o << "\r\n"
         //	      << m_sdp_session_s << "\r\n"
         //	      << m_sdp_session_c << "\r\n"
         //	      << "t=0 0\r\n";
-        //TODO: copy each m line and select appropriate a line
-        //tx_buffer << "Content-Type: application/sdp\r\n";
-        //tx_buffer << "Content-Length: " << m_tx_sdp_buffer.size() << "\r\n";
-        //tx_buffer << "Allow-Events: telephone-event\r\n";
+        // TODO: copy each m line and select appropriate a line
+        // tx_buffer << "Content-Type: application/sdp\r\n";
+        // tx_buffer << "Content-Length: " << m_tx_sdp_buffer.size() << "\r\n";
+        // tx_buffer << "Allow-Events: telephone-event\r\n";
         tx_buffer << "Content-Length: 0\r\n";
         tx_buffer << "\r\n";
-        //tx_buffer << m_tx_sdp_buffer.data();
+        // tx_buffer << m_tx_sdp_buffer.data();
 
         m_socket.send_buffered_data();
     }
@@ -717,7 +717,7 @@ private:
     uint32_t m_sip_sequence_number;
     uint32_t m_call_id;
 
-    //auth stuff
+    // auth stuff
     std::string m_response;
     std::string m_realm;
     std::string m_nonce;
@@ -726,7 +726,7 @@ private:
     uint32_t m_tag;
     uint32_t m_branch;
 
-    //misc stuff
+    // misc stuff
     std::string m_caller_display;
 
     uint32_t m_sdp_session_id;

@@ -66,7 +66,7 @@ void sip_task(void* pvParameters)
             if (!result)
             {
                 ESP_LOGI(TAG, "Waiting to try again...");
-                sleep(2); //sleep two seconds
+                sleep(2); // sleep two seconds
                 continue;
             }
             client.set_event_handler([](SipClientT& client, const SipClientEvent& event) {

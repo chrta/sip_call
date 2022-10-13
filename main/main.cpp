@@ -79,7 +79,7 @@ static std::string get_gw_ip_address(const system_event_sta_got_ip_t* got_ip)
     const ip4_addr_t* gateway = &got_ip->ip_info.gw;
     return ip_to_string(gateway);
 }
-#endif //CONFIG_SIP_SERVER_IS_DHCP_SERVER
+#endif // CONFIG_SIP_SERVER_IS_DHCP_SERVER
 
 static std::string get_local_ip_address(const esp_ip4_addr_t* got_ip)
 {
@@ -136,7 +136,7 @@ static void event_handler(void* arg, esp_event_base_t event_base,
         esp_ip4_addr_t* got_ip = &event->ip_info.ip;
 #ifdef CONFIG_SIP_SERVER_IS_DHCP_SERVER
         ctx->client->set_server_ip(get_gw_ip_address(got_ip));
-#endif //CONFIG_SIP_SERVER_IS_DHCP_SERVER
+#endif // CONFIG_SIP_SERVER_IS_DHCP_SERVER
         ctx->client->set_my_ip(get_local_ip_address(got_ip));
         xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
     }
@@ -253,6 +253,6 @@ extern "C" void app_main(void)
     // because some c++ objects are not fully initialized
     xTaskCreatePinnedToCore(&sip_task, "sip_task", 8192, &handlers, 5, NULL, 0);
 
-    //blocks forever
+    // blocks forever
     button_input_handler.run();
 }
