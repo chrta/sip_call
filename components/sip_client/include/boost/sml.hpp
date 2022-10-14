@@ -9,12 +9,12 @@
 #if (__cplusplus < 201305L && _MSC_VER < 1900)
 #error "[Boost::ext].SML requires C++14 support (Clang-3.4+, GCC-5.1+, MSVC-2015+)"
 #else
-#define BOOST_SML_VERSION 1'1'4
+#define BOOST_SML_VERSION 1'1'6
 #define BOOST_SML_NAMESPACE_BEGIN \
   namespace boost {               \
   inline namespace ext {          \
   namespace sml {                 \
-  inline namespace v1_1_4 {
+  inline namespace v1_1_6 {
 #define BOOST_SML_NAMESPACE_END \
   }                             \
   }                             \
@@ -449,25 +449,12 @@ template <template <class...> class T, class... Ts>
 struct size<T<Ts...>> {
   static constexpr auto value = sizeof...(Ts);
 };
-#if defined(_MSC_VER) && !defined(__clang__)
-constexpr int max_element_impl() { return 0; }
-constexpr int max_element_impl(int r) { return r; }
-constexpr int max_element_impl(int r, int i) { return r > i ? r : i; }
-constexpr int max_element_impl(int r, int i, int ints...) {
-  return i > r ? max_element_impl(i, ints) : max_element_impl(r, ints);
-}
-template <int... Ts>
-constexpr int max_element() {
-  return max_element_impl(Ts...);
-}
-#else
 template <int... Ts>
 constexpr int max_element() {
   int max = 0;
   (void)swallow{0, (Ts > max ? max = Ts : max)...};
   return max;
 }
-#endif
 template <class TExpr, class = void>
 struct zero_wrapper : TExpr {
   using type = TExpr;
@@ -1437,9 +1424,23 @@ struct sm_impl : aux::conditional_t<aux::is_empty<typename TSM::sm>::value, aux:
   }
   template <class TEvent, class TDeps, class TSubs, class... Ts,
             __BOOST_SML_REQUIRES(!aux::is_base_of<get_generic_t<TEvent>, events_ids_t>::value &&
-                                 !aux::is_base_of<get_mapped_t<TEvent>, events_ids_t>::value)>
+                                 !aux::is_base_of<get_mapped_t<TEvent>, events_ids_t>::value &&
+                                 !aux::is_same<get_event_t<TEvent>, initial>::value)>
   bool process_internal_events(const TEvent &, TDeps &, TSubs &, Ts &&...) {
     return false;
+  }
+  template <class TEvent, class TDeps, class TSubs, class... Ts,
+            __BOOST_SML_REQUIRES(!aux::is_base_of<get_generic_t<TEvent>, events_ids_t>::value &&
+                                 !aux::is_base_of<get_mapped_t<TEvent>, events_ids_t>::value &&
+                                 aux::is_same<get_event_t<TEvent>, initial>::value)>
+  bool process_internal_events(const TEvent &event, TDeps &deps, TSubs &subs) {
+    policies::log_process_event<sm_t>(aux::type<logger_t>{}, deps, event);
+#if BOOST_SML_DISABLE_EXCEPTIONS
+    return process_event_impl<get_event_mapping_t<get_generic_t<TEvent>, mappings>>(event, deps, subs, states_t{},
+                                                                                    aux::make_index_sequence<regions>{});
+#else
+    return process_event_except_imp<get_event_mapping_t<get_generic_t<TEvent>, mappings>>(event, deps, subs, has_exceptions{});
+#endif
   }
   template <class TEvent, class TDeps, class TSubs,
             __BOOST_SML_REQUIRES(aux::is_base_of<get_generic_t<TEvent>, events_ids_t>::value &&
@@ -1749,7 +1750,13 @@ class sm {
     using sm_impl_t = sm_impl<typename TSM::template rebind<type>>;
     using state_t = typename sm_impl_t::state_t;
     using states_ids_t = typename sm_impl_t::states_ids_t;
-    return aux::get_id<state_t, typename TState::type>((states_ids_t *)0) == aux::cget<sm_impl_t>(sub_sms_).current_state_[0];
+    auto result = false;
+    visit_current_states<T>([&](auto state) {
+      (void)state;
+      result |= (aux::get_id<state_t, typename TState::type>((states_ids_t *)0) ==
+                 aux::get_id<state_t, typename decltype(state)::type>((states_ids_t *)0));
+    });
+    return result;
   }
   template <class T = aux::identity<sm_t>, template <class...> class TState>
   bool is(const TState<terminate_state> &) const {
@@ -2302,6 +2309,12 @@ struct transition<state<S2>, G, A> : transition<state<internal>, state<S2>, fron
   auto operator=(const T &) const {
     return transition<T, state<S2>, front::event<back::anonymous>, G, A>{g, a};
   }
+  const auto &operator()() const { return *this; }
+  template <class TEvent, class TSM, class TDeps, class TSubs>
+  auto operator()(const TEvent &event, TSM &sm, TDeps &deps, TSubs &subs) -> void {
+    typename TSM::state_t s{};
+    this->execute(event, sm, deps, subs, s);
+  }
 };
 template <class S1, class S2>
 struct transition<state<S1>, state<S2>> : transition<state<S1>, state<S2>, front::event<back::anonymous>, always, none> {
@@ -2727,6 +2740,7 @@ __BOOST_SML_UNUSED static front::state<back::terminate_state> X;
 __BOOST_SML_UNUSED static front::history_state H;
 __BOOST_SML_UNUSED static front::actions::defer defer;
 __BOOST_SML_UNUSED static front::actions::process process;
+__BOOST_SML_UNUSED static front::state<class SML_EVAL> eval;
 template <class... Ts, __BOOST_SML_REQUIRES(aux::is_same<aux::bool_list<aux::always<Ts>::value...>,
                                                          aux::bool_list<concepts::transitional<Ts>::value...>>::value)>
 auto make_transition_table(Ts... ts) {
