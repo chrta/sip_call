@@ -42,6 +42,12 @@ public:
     {
     }
 
+    SipClient(const SipClient&) = delete;
+    SipClient(SipClient&&) = delete;
+
+    SipClient& operator=(const SipClient&) = delete;
+    SipClient& operator=(SipClient&&) = delete;
+
     bool init()
     {
         return m_sip.init();
