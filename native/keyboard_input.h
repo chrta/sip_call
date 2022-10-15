@@ -19,7 +19,7 @@
 class KeyboardInput
 {
 public:
-    KeyboardInput(asio::io_context& io_context)
+    explicit KeyboardInput(asio::io_context& io_context)
         : stream { io_context, ::dup(STDIN_FILENO) }
     {
         termios current {};
