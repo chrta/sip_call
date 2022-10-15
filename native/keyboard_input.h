@@ -22,7 +22,7 @@ public:
     KeyboardInput(asio::io_context& io_context)
         : stream { io_context, ::dup(STDIN_FILENO) }
     {
-        struct termios current;
+        termios current {};
         tcgetattr(0, &old_termios);
         current = old_termios;
         current.c_lflag &= ~ICANON; /* disable buffered i/o */
@@ -56,8 +56,8 @@ public:
 
 private:
     asio::posix::stream_descriptor stream;
-    std::array<char, 1> buf;
-    struct termios old_termios;
+    std::array<char, 1> buf {};
+    termios old_termios {};
 
     static constexpr char const* TAG = "key";
 };
