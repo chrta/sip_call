@@ -38,7 +38,6 @@ public:
         : m_sip {
             io_context, user, pwd, server_ip, server_port, my_ip, m_sm, *this
         }
-        , m_logger {}
         , m_sm { m_sip, m_logger }
     {
     }
@@ -96,6 +95,6 @@ public:
 
 private:
     SipClientInternal m_sip;
-    Logger m_logger;
+    Logger m_logger {};
     SmlSmT m_sm;
 };
