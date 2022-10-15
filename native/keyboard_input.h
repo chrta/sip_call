@@ -34,7 +34,7 @@ public:
         tcsetattr(0, TCSANOW, &old_termios);
     }
 
-    void do_read(std::function<void(char c)> on_press)
+    void do_read(const std::function<void(char c)>& on_press)
     {
         asio::async_read(
             stream, asio::buffer(buf),
