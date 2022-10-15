@@ -652,7 +652,7 @@ private:
     {
         std::string ha1_text;
         std::string ha2_text;
-        unsigned char hash[16];
+        std::array<unsigned char, 16> hash {};
 
         m_response = "";
         std::string data = m_user + ":" + m_realm + ":" + m_pwd;
@@ -660,7 +660,7 @@ private:
         m_md5.start();
         m_md5.update(data);
         m_md5.finish(hash);
-        to_hex(ha1_text, hash, 16);
+        to_hex(ha1_text, hash);
         ESP_LOGV(TAG, "Calculating md5 for : %s", data.c_str());
         ESP_LOGV(TAG, "Hex ha1 is %s", ha1_text.c_str());
 
@@ -669,7 +669,7 @@ private:
         m_md5.start();
         m_md5.update(data);
         m_md5.finish(hash);
-        to_hex(ha2_text, hash, 16);
+        to_hex(ha2_text, hash);
         ESP_LOGV(TAG, "Calculating md5 for : %s", data.c_str());
         ESP_LOGV(TAG, "Hex ha2 is %s", ha2_text.c_str());
 
@@ -678,21 +678,21 @@ private:
         m_md5.start();
         m_md5.update(data);
         m_md5.finish(hash);
-        to_hex(m_response, hash, 16);
+        to_hex(m_response, hash);
         ESP_LOGV(TAG, "Calculating md5 for : %s", data.c_str());
         ESP_LOGV(TAG, "Hex response is %s", m_response.c_str());
     }
 
-    void to_hex(std::string& dest, const unsigned char* data, uint8_t len)
+    void to_hex(std::string& dest, const std::array<unsigned char, 16>& data)
     {
-        static const char hexits[17] = "0123456789abcdef";
+        static const std::array<char, 16> hexits { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
 
         dest = "";
-        dest.reserve(len * 2 + 1);
-        for (int i = 0; i < len; i++)
+        dest.reserve(data.size() * 2 + 1);
+        for (auto byte : data)
         {
-            dest.push_back(hexits[data[i] >> 4]);
-            dest.push_back(hexits[data[i] & 0x0F]);
+            dest.push_back(hexits[byte >> 4]);
+            dest.push_back(hexits[byte & 0x0F]);
         }
     }
 
