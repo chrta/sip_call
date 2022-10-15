@@ -4,6 +4,8 @@ ESP32 door bell to sip call
 On startup the application associates with the compiled in wlan access point and
 registers on the SIP server.
 
+The project also contains a http server to perform firmware updates by uploading the firmware bin file.
+
 Once a signal is detected on the selected GPIO, a call is initiated to a target number. On the phone, the custom string is displayed.
 After the configured timeout is elapsed, the call is canceled. If the signal is detected again, before the timer is elapsed, the timer
 is started again.

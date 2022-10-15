@@ -33,6 +33,8 @@
 #include "sip_event_handler_actuator.h"
 #include "sip_event_handler_button.h"
 
+#include "web_server/web_server.h"
+
 #include <string.h>
 
 static constexpr auto BELL_GPIO_PIN = static_cast<gpio_num_t>(CONFIG_BELL_INPUT_GPIO);
@@ -83,11 +85,14 @@ static std::string get_local_ip_address(const esp_ip4_addr_t* got_ip)
 
 using ButtonInputHandlerT = ButtonInputHandler<SipClientT, BELL_GPIO_PIN, RING_DURATION_TIMEOUT_MSEC>;
 
+using WebServerT = WebServer<SipClientT>;
+
 struct handlers_t
 {
     SipClientT* client;
     ButtonInputHandlerT* button_input_handler;
     asio::io_context* io_context;
+    WebServerT* web_server;
 } handlers;
 /* This global handlers instance is only necessary because using event_data in event_handler is not possible */
 
@@ -116,6 +121,7 @@ static void event_handler(void* arg, esp_event_base_t event_base,
         ESP_LOGI(TAG, "Wifi STA disconnected, deinit client");
         ctx->client->deinit();
         ctx->io_context->stop();
+        ctx->web_server->stop();
         /* This is a workaround as ESP32 WiFi libs don't currently auto-reassociate. */
         esp_wifi_connect();
         xEventGroupClearBits(wifi_event_group, CONNECTED_BIT);
@@ -133,6 +139,7 @@ static void event_handler(void* arg, esp_event_base_t event_base,
         ctx->client->set_server_ip(get_gw_ip_address(got_ip));
 #endif // CONFIG_SIP_SERVER_IS_DHCP_SERVER
         ctx->client->set_my_ip(get_local_ip_address(got_ip));
+        ctx->web_server->start();
         xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
     }
 }
@@ -181,6 +188,7 @@ static void sip_task(void* pvParameters)
 {
     handlers_t* ctx = static_cast<handlers_t*>(pvParameters);
     SipClientT& client = *ctx->client;
+    WebServerT* web_server = ctx->web_server;
 
     static std::tuple handlers {
         SipEventHandlerLog {},
@@ -209,8 +217,9 @@ static void sip_task(void* pvParameters)
                 continue;
             }
 
-            client.set_event_handler([](SipClientT& client, const SipClientEvent& event) {
+            client.set_event_handler([web_server](SipClientT& client, const SipClientEvent& event) {
                 std::apply([event, &client](auto&... h) { (h.handle(client, event), ...); }, handlers);
+                web_server->handle(client, event);
             });
         }
 
@@ -241,9 +250,12 @@ extern "C" void app_main(void)
     SipClientT client { io_context, CONFIG_SIP_USER, CONFIG_SIP_PASSWORD, CONFIG_SIP_SERVER_IP, CONFIG_SIP_SERVER_PORT, CONFIG_LOCAL_IP };
     ButtonInputHandler<SipClientT, BELL_GPIO_PIN, RING_DURATION_TIMEOUT_MSEC> button_input_handler(client);
 
+    WebServerT web_server { client };
+
     handlers.client = &client;
     handlers.button_input_handler = &button_input_handler;
     handlers.io_context = &io_context;
+    handlers.web_server = &web_server;
 
     ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, &handlers, nullptr));
     ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, &handlers, nullptr));

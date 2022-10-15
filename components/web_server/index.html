@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+      .header_text {
+	  display: flex;
+	  flex-wrap: wrap;
+	  flex-direction: column;
+	  flex: 1;
+	  align-items: center;
+	  justify-content: center;
+      }
+      .flex-container {
+	  display: flex;
+	  flex-direction: column;
+	  align-items: center;
+      }
+      #progress-bar-div {
+	  display: none;
+      }
+      .header_text {
+	  display: flex;
+	  flex-wrap: wrap;
+	  flex-direction: column;
+	  flex: 1;
+	  align-items: center;
+	  justify-content: center;
+      }
+      .flex-container {
+	  display: flex;
+	  flex-direction: column;
+	  align-items: center;
+      }
+      #progress-bar-div {
+	  display: none;
+      }
+    </style>
+    <title>SIP Call</title>
+    <script type="text/javascript">
+      var loc = window.location, ws_uri;
+      if (loc.protocol === "https:") {
+	  ws_uri = "wss:";
+      } else {
+	  ws_uri = "ws:";
+      }
+      ws_uri += "//" + loc.host + loc.pathname + "ws";
+      console.log("Connecting to %s", ws_uri);
+
+      let ws = new WebSocket(ws_uri);
+
+      ws.onopen = function() {
+	  ws.send(JSON.stringify({"command": "subscribe"}))
+      }
+
+      ws.onmessage = function(msg) {
+	  console.log("New message received : %s", msg.data /*JSON.parse(msg.data).message*/);
+      }
+
+      function upload() {
+	  const progress = document.getElementById("progress-bar");
+	  var upload_path = "/upload/firmware.bin";
+	  var fileInput = document.getElementById("newfile").files;
+
+          document.getElementById("newfile").disabled = true;
+          document.getElementById("upload").disabled = true;
+
+	  document.getElementById("progress-bar-div").style.display = "block";
+
+          var file = fileInput[0];
+          var xhttp = new XMLHttpRequest();
+          xhttp.onreadystatechange = function() {
+              if (xhttp.readyState == 4) {
+                  if (xhttp.status == 200) {
+                      document.open();
+                      document.write(xhttp.responseText);
+                      document.close();
+		  } else if (xhttp.status == 204) {
+		      alert("Upload finished successfully, reset to apply update!");	  
+                  } else if (xhttp.status == 0) {
+                      alert("Server closed the connection abruptly!");
+                      location.reload()
+                  } else {
+                      alert(xhttp.status + " Error!\n" + xhttp.responseText);
+                      location.reload()
+                  }
+              }
+          };
+
+	  xhttp.upload.onprogress = function(e) {
+	      const percentComplete = (e.loaded / e.total)*100;
+	      progress.setAttribute('value', percentComplete); // Update value of progress HTML element
+	      progress.nextElementSibling.nextElementSibling.innerText = Math.round(percentComplete)+"%";
+	  };
+
+          xhttp.open("POST", upload_path, true);
+          xhttp.send(file);
+      }
+
+      function reset() {
+	  ws.send(JSON.stringify({"command": "reset"}));
+	  document.getElementById("newfile").disabled = true;
+          document.getElementById("upload").disabled = true;
+          document.getElementById("reset").disabled = true;
+
+	  setTimeout(location.reload.bind(location), 10000);
+	  alert("Rebooting now. Automatically reloading after 10 seconds.");
+      }
+    </script>
+  </head>
+  <body>
+    <h1 class="header_text">SIP Call</h1>
+    <div class="flex-container">
+      <div style="margin: 5px;">
+        <label for="newfile">Upload firmware</label>
+        <input id="newfile" type="file">
+      </div>
+      <div style="margin: 5px;">
+        <button id="upload" type="button" onclick="upload()">Upload</button>
+      </div>
+      <div id="progress-bar-div" style="margin: 5px;">
+	<progress id="progress-bar" value="0" max="100"></progress><br>
+	<label for="progress-bar">0%</label>
+      </div>
+      <div style="margin: 20px;">
+	<button id="reset" type="button" onclick="reset()">Reset ESP</button>
+      </div>
+    </div>
+  </body>
+</html>
