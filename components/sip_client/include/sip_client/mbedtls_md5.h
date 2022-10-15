@@ -46,9 +46,9 @@ public:
         mbedtls_md5_update(&m_ctx, reinterpret_cast<const unsigned char*>(input.c_str()), input.size());
     }
 
-    void finish(unsigned char hash[16])
+    void finish(std::array<unsigned char, 16>& hash)
     {
-        mbedtls_md5_finish(&m_ctx, hash);
+        mbedtls_md5_finish(&m_ctx, hash.data());
     }
 
 private:
