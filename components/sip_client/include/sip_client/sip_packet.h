@@ -58,10 +58,6 @@ public:
     SipPacket(char* input_buffer, size_t input_buffer_length)
         : m_buffer(input_buffer)
         , m_buffer_length(input_buffer_length)
-        , m_status(Status::UNKNOWN)
-        , m_method(Method::UNKNOWN)
-        , m_content_type(ContentType::UNKNOWN)
-        , m_content_length(0)
     {
     }
 
@@ -526,10 +522,10 @@ private:
     char* m_buffer;
     const size_t m_buffer_length;
 
-    Status m_status;
-    Method m_method;
-    ContentType m_content_type;
-    uint32_t m_content_length;
+    Status m_status { Status::UNKNOWN };
+    Method m_method { Method::UNKNOWN };
+    ContentType m_content_type { ContentType::UNKNOWN };
+    uint32_t m_content_length { 0 };
 
     std::string m_realm;
     std::string m_nonce;

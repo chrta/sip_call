@@ -47,11 +47,9 @@ public:
         , m_to_uri("sip:" + user + "@" + server_ip)
         , m_sip_sequence_number(std::rand() % 2147483647)
         , m_call_id(std::rand() % 2147483647)
-        , m_proxy_auth(false)
         , m_tag(std::rand() % 2147483647)
         , m_branch(std::rand() % 2147483647)
         , m_caller_display(m_user)
-        , m_sdp_session_id(0)
         , m_sm(sm)
         , m_io_context(io_context)
         , m_timer(io_context)
@@ -721,7 +719,7 @@ private:
     std::string m_response;
     std::string m_realm;
     std::string m_nonce;
-    bool m_proxy_auth;
+    bool m_proxy_auth { false };
 
     uint32_t m_tag;
     uint32_t m_branch;
@@ -729,7 +727,7 @@ private:
     // misc stuff
     std::string m_caller_display;
 
-    uint32_t m_sdp_session_id;
+    uint32_t m_sdp_session_id { 0 };
     Buffer<1024> m_tx_sdp_buffer;
 
     std::function<void(SipClientT&, const SipClientEvent&)> m_event_handler;
