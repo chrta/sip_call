@@ -139,7 +139,7 @@ public:
 
         ESP_LOGI(TAG, "Doing DNS lookup for host=%s port=%s", m_server_ip.c_str(), m_server_port.c_str());
         asio::ip::udp::resolver resolver(m_io_context);
-        asio::ip::udp::resolver::results_type endpoints = resolver.resolve(asio::ip::udp::v4(), m_server_ip, m_server_port, ec);
+        const asio::ip::udp::resolver::results_type endpoints = resolver.resolve(asio::ip::udp::v4(), m_server_ip, m_server_port, ec);
 
         if (endpoints.empty() || ec)
         {
@@ -207,10 +207,10 @@ public:
     {
         ESP_LOGV(TAG, "Sending %d byte", m_tx_buffer.size());
         ESP_LOGV(TAG, "Sending following data: %s", m_tx_buffer.data());
-        asio::socket_base::message_flags flags = 0;
+        const asio::socket_base::message_flags flags = 0;
         asio::error_code ec;
 
-        size_t result = m_socket.send_to(
+        const size_t result = m_socket.send_to(
             asio::buffer(m_tx_buffer.data(), m_tx_buffer.size()), m_destination_endpoint, flags, ec);
 
         if (ec || (result <= 0))

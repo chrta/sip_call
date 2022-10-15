@@ -67,7 +67,7 @@ public:
 
     bool parse()
     {
-        bool result = parse_header();
+        const bool result = parse_header();
         if (!result)
         {
             return false;
@@ -232,7 +232,7 @@ private:
 
             if (strstr(start_position, SIP_2_0_SPACE) == start_position)
             {
-                long code = strtol(start_position + strlen(SIP_2_0_SPACE), nullptr, 10);
+                const long code = strtol(start_position + strlen(SIP_2_0_SPACE), nullptr, 10);
                 ESP_LOGV(TAG, "Detect status %ld", code);
                 m_status = convert_status(code);
             }
@@ -274,7 +274,7 @@ private:
                     const char* expires_pos = strstr(close_pos + 1, ";expires=");
                     if (expires_pos != nullptr)
                     {
-                        long contact_expires = strtol(expires_pos + strlen(";expires="), nullptr, 10);
+                        const long contact_expires = strtol(expires_pos + strlen(";expires="), nullptr, 10);
                         if (contact_expires < 0)
                         {
                             ESP_LOGW(TAG, "Invalid contact expires %ld", contact_expires);
@@ -326,7 +326,7 @@ private:
             }
             else if (strstr(start_position, CONTENT_LENGTH) == start_position)
             {
-                long content_length = strtol(start_position + strlen(CONTENT_LENGTH), nullptr, 10);
+                const long content_length = strtol(start_position + strlen(CONTENT_LENGTH), nullptr, 10);
                 if (content_length < 0)
                 {
                     ESP_LOGW(TAG, "Invalid content length %ld", content_length);
@@ -389,7 +389,7 @@ private:
             }
             else if (strstr(start_position, DURATION) == start_position)
             {
-                long duration = strtol(start_position + strlen(DURATION), nullptr, 10);
+                const long duration = strtol(start_position + strlen(DURATION), nullptr, 10);
                 if (duration < 0)
                 {
                     ESP_LOGW(TAG, "Invalid duration %ld", duration);

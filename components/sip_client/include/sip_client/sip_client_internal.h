@@ -63,8 +63,8 @@ public:
 
     bool init()
     {
-        bool result_rtp = m_rtp_socket.init();
-        bool result_sip = m_socket.init();
+        const bool result_rtp = m_rtp_socket.init();
+        const bool result_sip = m_socket.init();
 
         // TODO: remove this here, do it properly with boost::sml
         if (result_rtp && result_sip)
@@ -317,7 +317,7 @@ private:
 
         m_command_timeout_timer.cancel();
 
-        SipPacket::Status reply = packet.get_status();
+        const SipPacket::Status reply = packet.get_status();
         ESP_LOGI(TAG, "Parsing the packet ok, reply code=%d", static_cast<int>(packet.get_status()));
 
         if (reply == SipPacket::Status::SERVER_ERROR_500)
@@ -417,7 +417,7 @@ private:
     void send_sip_register()
     {
         TxBufferT& tx_buffer = m_socket.get_new_tx_buf();
-        std::string uri = "sip:" + m_server_ip;
+        const std::string uri = "sip:" + m_server_ip;
 
         send_sip_header("REGISTER", uri, "sip:" + m_user + "@" + m_server_ip, tx_buffer);
 
@@ -634,14 +634,14 @@ private:
 
     bool read_param(const std::string& line, const std::string& param_name, std::string& output)
     {
-        std::string param(param_name + "=\"");
+        const std::string param(param_name + "=\"");
         size_t pos = line.find(param);
         if (pos == std::string::npos)
         {
             return false;
         }
         pos += param.size();
-        size_t pos_end = line.find('\"', pos);
+        const size_t pos_end = line.find('\"', pos);
         if (pos_end == std::string::npos)
         {
             return false;

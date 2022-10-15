@@ -61,7 +61,7 @@ void sip_task(void* pvParameters)
     {
         if (!client.is_initialized())
         {
-            bool result = client.init();
+            const bool result = client.init();
             ESP_LOGI(TAG, "SIP client initialized %ssuccessfully", result ? "" : "un");
             if (!result)
             {
