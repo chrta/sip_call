@@ -118,6 +118,12 @@ config CALLER_DISPLAY_MESSAGE
 
                 See README.md for details.
 
+config HOSTNAME
+       string "Hostname"
+       default "sip-call"
+       help
+         The hostname that is advertised via DHCP and (if enabled) mDNS.
+
 config HTTP_SERVER
        bool "Include HTTP server"
        default y
@@ -130,14 +136,6 @@ config MDNS_SERVER
        default y if HTTP_SERVER
        help
          This enables mDNS server on the ESP32
-
-config MDNS_HOSTNAME
-       string "Own hostname for mDNS"
-       depends on MDNS_SERVER
-       default "sip-call"
-       help
-         The hostname that is advertised via mDNS. The esp32 is reachable
-	 from the browser via http://sip-call.local.
 
 config MDNS_INSTANCE
        string "Instance name for mDNS"
