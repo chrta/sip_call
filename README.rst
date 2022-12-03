@@ -22,7 +22,7 @@ Programming
 
 The source code is mixed C and C++.
 
-This application is to be used with `Espressif IoT Development Framework`_ (ESP-IDF). It is tested with version v5.0-beta1-720-gda9a78ebfc (rev da9a78ebfc45e4158f87811908337fa1d40912f3)
+This application is to be used with `Espressif IoT Development Framework`_ (ESP-IDF). It is tested with version v5.0 (rev 7f5ecbe533b2666df6b10658a023b5f637320696)
 
 Please check ESP-IDF docs for getting started instructions.
 
@@ -99,4 +99,4 @@ On the AVM Fritzbox the number \*\*9 can be used to let all connected phones rin
 
 
 .. _`Espressif IoT Development Framework`: https://esp-idf.readthedocs.io/
-.. _`Selecting soc build target`: https://docs.espressif.com/projects/esp-idf/en/v4.3.1/esp32c3/api-guides/build-system.html#selecting-the-target
+.. _`Selecting soc build target`: https://docs.espressif.com/projects/esp-idf/en/v5.0/esp32/api-guides/tools/idf-py.html#select-the-target-chip-set-target
