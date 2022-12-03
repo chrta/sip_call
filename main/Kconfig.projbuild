@@ -121,6 +121,7 @@ config CALLER_DISPLAY_MESSAGE
 config HTTP_SERVER
        bool "Include HTTP server"
        default y
+       select HTTPD_WS_SUPPORT
        help
          This enables/disables the inclusion of the http server.
 
