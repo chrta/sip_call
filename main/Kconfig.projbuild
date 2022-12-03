@@ -144,4 +144,8 @@ config MDNS_INSTANCE
        help
          The instance name used for mDNS.
 
+# Increase max sockets if http server is enablde
+config LWIP_MAX_SOCKETS
+       default 16 if HTTP_SERVER
+
 endmenu
