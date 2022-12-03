@@ -37,6 +37,10 @@
 #include "web_server/web_server.h"
 #endif /* CONFIG_HTTP_SERVER */
 
+#ifdef CONFIG_MDNS_SERVER
+#include "mdns.h"
+#endif /* CONFIG_MDNS_SERVER */
+
 #include <string.h>
 
 static constexpr auto BELL_GPIO_PIN = static_cast<gpio_num_t>(CONFIG_BELL_INPUT_GPIO);
@@ -256,6 +260,20 @@ extern "C" void app_main(void)
     ESP_ERROR_CHECK(ret);
 
     initialize_wifi();
+
+#ifdef CONFIG_MDNS_SERVER
+    ESP_ERROR_CHECK(mdns_init());
+    ESP_ERROR_CHECK(mdns_hostname_set(CONFIG_MDNS_HOSTNAME));
+    ESP_ERROR_CHECK(mdns_instance_name_set(CONFIG_MDNS_INSTANCE));
+
+#ifdef CONFIG_HTTP_SERVER
+    mdns_txt_item_t serviceTxtData[3] = {
+        { "board", "esp32" },
+    };
+    ESP_ERROR_CHECK(mdns_service_add("SIP-Call-WebServer", "_http", "_tcp", 80, serviceTxtData, 1));
+#endif /* CONFIG_HTTP_SERVER */
+
+#endif /* CONFIG_MDNS_SERVER */
 
     asio::io_context io_context { 1 };
 
