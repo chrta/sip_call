@@ -118,4 +118,10 @@ config CALLER_DISPLAY_MESSAGE
 
                 See README.md for details.
 
+config HTTP_SERVER
+       bool "Include HTTP server"
+       default y
+       help
+         This enables/disables the inclusion of the http server.
+
 endmenu
