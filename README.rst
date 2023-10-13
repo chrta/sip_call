@@ -65,7 +65,7 @@ Code formatting
 +++++++++++++++
 
 Clang-format is used to format the code. The settings are stored in .clangformat. The format of external files, e.g.
-components/sip_client/include/boost/sml.hpp should not be changed. To run clang-format (e.g. version 12) over all files::
+components/sip_client/include/boost/sml.hpp (`boost-ext/sml`_) should not be changed. To run clang-format (e.g. version 12) over all files::
 
   find . -regex '.*\.\(cpp\|cc\|cxx\|h\)' -exec clang-format -style=file -i {} \;
 
@@ -100,3 +100,4 @@ On the AVM Fritzbox the number \*\*9 can be used to let all connected phones rin
 
 .. _`Espressif IoT Development Framework`: https://esp-idf.readthedocs.io/
 .. _`Selecting soc build target`: https://docs.espressif.com/projects/esp-idf/en/v5.0/esp32/api-guides/tools/idf-py.html#select-the-target-chip-set-target
+.. _`boost-ext/sml`: https://github.com/boost-ext/sml
