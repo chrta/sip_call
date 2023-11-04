@@ -1,4 +1,5 @@
-build/
+build*/
+managed_componenets/
 sdkconfig.old
 sdkconfig
 compile_commands.json
