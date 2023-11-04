@@ -24,9 +24,9 @@ wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
 
 echo deb http://apt.llvm.org/${UBUNTU_CODENAME}/ llvm-toolchain-${UBUNTU_CODENAME}-15 main > /etc/apt/sources.list.d/llvm.list
 
-wget https://github.com/chriskohlhoff/asio/archive/asio-1-14-1.tar.gz -O /tmp/asio-1-14-1.tar.gz
+wget https://github.com/chriskohlhoff/asio/archive/asio-1-28-0.tar.gz -O /tmp/asio-1-28-0.tar.gz
 
-tar -C /usr/include --strip-components=3 -x -f /tmp/asio-1-14-1.tar.gz asio-asio-1-14-1/asio/include/
+tar -C /usr/include --strip-components=3 -x -f /tmp/asio-1-28-0.tar.gz asio-asio-1-28-0/asio/include/
 
 apt-get update \
     && apt-get install -y clang-15 \

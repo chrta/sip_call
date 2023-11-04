@@ -68,6 +68,22 @@ static const char* TAG = "main";
 
 using SipClientT = SipClient<AsioUdpClient, MbedtlsMd5>;
 
+#ifdef ASIO_NO_EXCEPTIONS
+namespace asio::detail {
+
+template <typename Exception>
+void throw_exception(const Exception& e)
+{
+    ESP_LOGE(TAG, "Asio exception, terminating...");
+    std::terminate();
+}
+
+template void throw_exception<invalid_service_owner>(const invalid_service_owner&);
+template void throw_exception<service_already_exists>(const service_already_exists&);
+template void throw_exception<system_error>(const system_error&);
+}; // namespace asio::detail
+#endif // ASIO_NO_EXCEPTIONS
+
 static std::string ip_to_string(const esp_ip4_addr_t* ip)
 {
     static constexpr size_t BUFFER_SIZE = 16;

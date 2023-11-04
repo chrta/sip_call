@@ -1,11 +1,11 @@
 ## IDF Component Manager Manifest File
 dependencies:
   espressif/asio:
-    version: "^1.14.1~3"
+    version: "^1.28.0"
     public: true
   ## Required IDF version
   idf:
-    version: ">=4.1.0"
+    version: ">=5.1.0"
   # # Put list of dependencies here
   # # For components maintained by Espressif:
   # component: "~1.0.0"
