@@ -112,7 +112,7 @@ config CALL_TARGET_USER
 
 config CALLER_DISPLAY_MESSAGE
     string "Caller Display Message"
-        default "Türklingel"
+        default "Tuerklingel"
         help
                 This message is shown on the called device.
 
