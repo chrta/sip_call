@@ -1,4 +1,4 @@
-FROM espressif/idf:release-v5.1
+FROM espressif/idf:release-v5.5
 
 ARG DEBIAN_FRONTEND=noninteractive
 
