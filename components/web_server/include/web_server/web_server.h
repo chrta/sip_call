@@ -49,7 +49,7 @@ private:
 
 public:
     explicit WebServer(SipClientT& client)
-        : client { client } {};
+        : client { client } { };
 
     WebServer(const WebServer&) = delete;
     WebServer(WebServer&&) = delete;
