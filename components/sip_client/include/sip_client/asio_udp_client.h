@@ -63,7 +63,7 @@ public:
     }
 
     template <typename T>
-    typename std::enable_if<std::is_unsigned_v<T>, Buffer<SIZE>&>::type operator<<(T i)
+    std::enable_if_t<std::is_unsigned_v<T>, Buffer<SIZE>&> operator<<(T i)
     {
         snprintf(m_buffer.data() + strlen(m_buffer.data()), m_buffer.size() - strlen(m_buffer.data()), "%u", static_cast<unsigned>(i));
         return *this;

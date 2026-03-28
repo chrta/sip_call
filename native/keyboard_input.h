@@ -34,6 +34,11 @@ public:
         tcsetattr(0, TCSANOW, &old_termios);
     }
 
+    KeyboardInput(const KeyboardInput&) = delete;
+    KeyboardInput& operator=(const KeyboardInput&) = delete;
+    KeyboardInput(KeyboardInput&&) = delete;
+    KeyboardInput& operator=(KeyboardInput&&) = delete;
+
     void do_read(const std::function<void(char c)>& on_press)
     {
         asio::async_read(

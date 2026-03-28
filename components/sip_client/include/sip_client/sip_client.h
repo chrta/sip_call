@@ -73,9 +73,9 @@ public:
         m_sip.set_credentials(user, password);
     }
 
-    void set_event_handler(std::function<void(SipClientT&, const SipClientEvent&)> handler)
+    void set_event_handler(std::function<void(SipClientT&, const SipClientEvent&)>&& handler)
     {
-        m_sip.set_event_handler(handler);
+        m_sip.set_event_handler(std::move(handler));
     }
 
     /**

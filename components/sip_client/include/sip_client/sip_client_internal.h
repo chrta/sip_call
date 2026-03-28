@@ -35,7 +35,7 @@ class SipClientInt
 public:
     SipClientInt(asio::io_context& io_context, const std::string& user, std::string pwd, const std::string& server_ip, const std::string& server_port, std::string my_ip, SmlSmT& sm, SipClientT& sip_client)
         : m_socket(io_context, server_ip, server_port, LOCAL_PORT, [this](std::string data) {
-            rx(data);
+            rx(std::move(data));
         })
         , m_rtp_socket(io_context, server_ip, "7078", LOCAL_RTP_PORT, [](const std::string& /*unused*/) {
         })
@@ -101,9 +101,9 @@ public:
         m_to_uri = "sip:" + m_user + "@" + m_server_ip;
     }
 
-    void set_event_handler(std::function<void(SipClientT&, const SipClientEvent&)> handler)
+    void set_event_handler(std::function<void(SipClientT&, const SipClientEvent&)>&& handler)
     {
-        m_event_handler = handler;
+        m_event_handler = std::move(handler);
     }
 
     /**
@@ -688,7 +688,7 @@ private:
         static const std::array<char, 16> hexits { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
 
         dest = "";
-        dest.reserve(data.size() * 2 + 1);
+        dest.reserve((data.size() * 2) + 1);
         for (auto byte : data)
         {
             dest.push_back(hexits[byte >> 4]);
