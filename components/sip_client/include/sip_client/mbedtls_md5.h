@@ -16,19 +16,17 @@
 
 #pragma once
 
-#include "mbedtls/md5.h"
+#include "psa/crypto.h"
 
 class MbedtlsMd5
 {
 public:
-    MbedtlsMd5()
-    {
-        mbedtls_md5_init(&m_ctx);
-    }
+    MbedtlsMd5() = default;
 
     ~MbedtlsMd5()
     {
-        mbedtls_md5_free(&m_ctx);
+        psa_status_t status = psa_hash_abort(&operation);
+        assert(status == PSA_SUCCESS);
     }
 
     MbedtlsMd5(const MbedtlsMd5&) = delete;
@@ -38,19 +36,24 @@ public:
 
     void start()
     {
-        mbedtls_md5_starts(&m_ctx);
+        psa_status_t status = psa_hash_setup(&operation, PSA_ALG_MD5);
+        assert(status == PSA_SUCCESS);
     }
 
     void update(const std::string& input)
     {
-        mbedtls_md5_update(&m_ctx, reinterpret_cast<const unsigned char*>(input.c_str()), input.size());
+        psa_status_t status = psa_hash_update(&operation, reinterpret_cast<const unsigned char*>(input.c_str()), input.size());
+        assert(status == PSA_SUCCESS);
     }
 
     void finish(std::array<unsigned char, 16>& hash)
     {
-        mbedtls_md5_finish(&m_ctx, hash.data());
+        size_t hash_len;
+        psa_status_t status = psa_hash_finish(&operation, hash.data(), hash.size(), &hash_len);
+        assert(status == PSA_SUCCESS);
+        assert(hash_len == hash.size());
     }
 
 private:
-    mbedtls_md5_context m_ctx {};
+    psa_hash_operation_t operation = PSA_HASH_OPERATION_INIT;
 };
