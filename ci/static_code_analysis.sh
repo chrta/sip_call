@@ -6,6 +6,6 @@ set -eo pipefail
 
 mkdir build_clang
 cd build_clang
-CC=clang-20 CXX=clang++-20 cmake ../native -G Ninja -D CMAKE_CXX_FLAGS=-DASIO_STANDALONE -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+CC=clang-21 CXX=clang++-21 cmake ../native -G Ninja -D CMAKE_CXX_FLAGS=-DASIO_STANDALONE -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
-run-clang-tidy-20.py -clang-tidy-binary clang-tidy-20
+run-clang-tidy-21.py -clang-tidy-binary clang-tidy-21

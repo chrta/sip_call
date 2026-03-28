@@ -4,4 +4,4 @@
 
 set -eo pipefail
 
-ci/run-clang-format.py --clang-format-executable clang-format-20 -r main/ components/ native/
+ci/run-clang-format.py --clang-format-executable clang-format-21 -r main/ components/ native/
