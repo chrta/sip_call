@@ -41,6 +41,6 @@ else()
 endif()
 
 # set the C++ standard
-set(TARGET sip-client PROPERTY CMAKE_CXX_STANDARD_REQUIRED 17)
-set_property(TARGET sip-client PROPERTY CXX_STANDARD 17)
+set(TARGET sip-client PROPERTY CMAKE_CXX_STANDARD_REQUIRED 20)
+set_property(TARGET sip-client PROPERTY CXX_STANDARD 20)
 
