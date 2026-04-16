@@ -253,9 +253,6 @@ static void sip_task(void* pvParameters)
 
 extern "C" void app_main(void)
 {
-    // seed for std::rand() used in the sip client
-    std::srand(esp_random());
-
     // Initialize NVS
     esp_err_t ret = nvs_flash_init();
     if ((ret == ESP_ERR_NVS_NO_FREE_PAGES) || (ret == ESP_ERR_NVS_NEW_VERSION_FOUND))
@@ -303,9 +300,6 @@ extern "C" void app_main(void)
     ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, &handlers, nullptr));
 
     start_wifi();
-
-    // reseed after initializing wifi
-    std::srand(esp_random());
 
     // without pinning this to core 0, funny stuff (crashes) happen,
     // because some c++ objects are not fully initialized

@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "sip_client_event.h"
+#include "sip_identifier.h"
 #include "sip_packet.h"
 #include "sip_sml_events.h"
 #include "sip_sml_logger.h"
@@ -34,10 +35,9 @@ public:
         , m_my_ip(std::move(my_ip))
         , m_uri("sip:" + server_ip)
         , m_to_uri("sip:" + user + "@" + server_ip)
-        , m_sip_sequence_number(std::rand() % 2147483647)
-        , m_call_id(std::rand() % 2147483647)
-        , m_tag(std::rand() % 2147483647)
-        , m_branch(std::rand() % 2147483647)
+        , m_call_id(SipIdentifier::generate())
+        , m_tag(SipIdentifier::generate())
+        , m_branch(SipIdentifier::generate_branch())
         , m_caller_display(m_user)
         , m_sm(sm)
         , m_io_context(io_context)
@@ -128,11 +128,11 @@ public:
     void register_unauth()
     {
         // sending REGISTER without auth
-        m_tag = std::rand() % 2147483647;
-        m_branch = std::rand() % 2147483647;
+        m_tag = SipIdentifier::generate();
+        m_branch = SipIdentifier::generate_branch();
         send_sip_register();
-        m_tag = std::rand() % 2147483647;
-        m_branch = std::rand() % 2147483647;
+        m_tag = SipIdentifier::generate();
+        m_branch = SipIdentifier::generate_branch();
     }
 
     // send  register request
@@ -177,10 +177,10 @@ public:
         // first ack the prev sip 401/407 packet
         send_sip_ack();
 
-        m_sdp_session_id = static_cast<uint32_t>(std::rand());
+        m_sdp_session_id = SipIdentifier::random_u32();
 
         // or sending INVITE with auth
-        m_branch = std::rand() % 2147483647;
+        m_branch = SipIdentifier::generate_branch();
         m_sip_sequence_number++;
         compute_auth_response("INVITE", m_uri);
         send_sip_invite();
@@ -189,15 +189,15 @@ public:
     void send_invite(const ev_initiate_call& /*unused*/)
     {
         m_sip_sequence_number++;
-        m_sdp_session_id = static_cast<uint32_t>(std::rand());
-        m_branch = std::rand() % 2147483647;
+        m_sdp_session_id = SipIdentifier::random_u32();
+        m_branch = SipIdentifier::generate_branch();
         send_sip_invite();
     }
 
     void request_call(const ev_request_call& event)
     {
         ESP_LOGI(TAG, "Request to call %s...", event.local_number.c_str());
-        m_call_id = std::rand() % 2147483647;
+        m_call_id = SipIdentifier::generate();
         m_uri = "sip:" + event.local_number + "@" + m_server_ip;
         m_to_uri = "sip:" + event.local_number + "@" + m_server_ip;
         m_caller_display = event.caller_display;
@@ -240,8 +240,8 @@ public:
             m_event_handler(m_sip_client, SipClientEvent { .event = SipClientEvent::Event::CALL_CANCELLED });
         }
         send_sip_ack();
-        m_tag = std::rand() % 2147483647;
-        m_branch = std::rand() % 2147483647;
+        m_tag = SipIdentifier::generate();
+        m_branch = SipIdentifier::generate_branch();
         m_sip_sequence_number++;
     }
 
@@ -272,8 +272,8 @@ public:
 
     void handle_internal_server_error()
     {
-        m_tag = std::rand() % 2147483647;
-        m_branch = std::rand() % 2147483647;
+        m_tag = SipIdentifier::generate();
+        m_branch = SipIdentifier::generate_branch();
         m_sip_sequence_number++;
 
         // wait for timeout and restart again
@@ -360,7 +360,7 @@ private:
         {
             send_sip_ack();
             m_sip_sequence_number++;
-            m_branch = std::rand() % 2147483647;
+            m_branch = SipIdentifier::generate_branch();
 
             m_sm.process_event(ev_603_decline {});
         }
@@ -368,7 +368,7 @@ private:
         {
             send_sip_ack();
             m_sip_sequence_number++;
-            m_branch = std::rand() % 2147483647;
+            m_branch = SipIdentifier::generate_branch();
 
             m_sm.process_event(ev_486_busy_here {});
         }
@@ -564,7 +564,7 @@ private:
         {
             stream << "From: \"" << m_user << "\" <sip:" << m_user << "@" << m_server_ip << ">;tag=" << m_tag << "\r\n";
         }
-        stream << "Via: SIP/2.0/" << TRANSPORT_UPPER << " " << m_my_ip << ":" << LOCAL_PORT << ";branch=z9hG4bK-" << m_branch << ";rport\r\n";
+        stream << "Via: SIP/2.0/" << TRANSPORT_UPPER << " " << m_my_ip << ":" << LOCAL_PORT << ";branch=" << m_branch << ";rport\r\n";
 
         if ((command == "ACK") && !m_to_tag.empty())
         {
@@ -699,8 +699,8 @@ private:
 
     SipPacket::RecordRouteT m_record_route;
 
-    uint32_t m_sip_sequence_number;
-    uint32_t m_call_id;
+    uint32_t m_sip_sequence_number { SipIdentifier::random_u32() & 0x7FFFFFFFU };
+    std::string m_call_id;
 
     // auth stuff
     std::string m_response;
@@ -708,8 +708,8 @@ private:
     std::string m_nonce;
     bool m_proxy_auth { false };
 
-    uint32_t m_tag;
-    uint32_t m_branch;
+    std::string m_tag;
+    std::string m_branch;
 
     // misc stuff
     std::string m_caller_display;
