@@ -4,7 +4,7 @@
 
 set -eo pipefail
 
-mkdir build_clang
+mkdir -p build_clang
 cd build_clang
 CC=clang-21 CXX=clang++-21 cmake ../native -G Ninja -D CMAKE_CXX_FLAGS=-DASIO_STANDALONE -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
