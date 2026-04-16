@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <optional>
 #include <utility>
 
@@ -143,11 +144,12 @@ public:
 
     void schedule_reregister(uint32_t register_expires)
     {
-        if (register_expires < 10)
+        if (register_expires == 0)
         {
-            register_expires = 3600;
+            register_expires = DEFAULT_REGISTER_EXPIRES_SEC;
         }
-        m_reregister_timer.expires_after(asio::chrono::seconds(register_expires / 2));
+        const uint32_t reregister_after = std::max(register_expires / 2, MIN_REREGISTER_INTERVAL_SEC);
+        m_reregister_timer.expires_after(asio::chrono::seconds(reregister_after));
 
         m_reregister_timer.async_wait([this](const asio::error_code& ec) {
             if (!ec)
@@ -157,10 +159,26 @@ public:
         });
     }
 
+    void retry_register_on_timeout()
+    {
+        const uint32_t shift = std::min<uint32_t>(m_register_failure_count, 4U);
+        const uint32_t delay_sec = std::min<uint32_t>(1U << (shift + 1), MAX_REGISTER_BACKOFF_SEC);
+        ++m_register_failure_count;
+        ESP_LOGI(TAG, "REGISTER retry #%u in %us", static_cast<unsigned>(m_register_failure_count), static_cast<unsigned>(delay_sec));
+        m_reregister_timer.expires_after(asio::chrono::seconds(delay_sec));
+        m_reregister_timer.async_wait([this](const asio::error_code& ec) {
+            if (!ec)
+            {
+                register_unauth();
+            }
+        });
+    }
+
     void is_registered()
     {
         m_sip_sequence_number++;
         m_registration = {};
+        m_register_failure_count = 0;
         ESP_LOGI(TAG, "OK :)");
     }
 
@@ -716,6 +734,8 @@ private:
     std::string m_tag;
     std::string m_branch;
 
+    uint32_t m_register_failure_count { 0 };
+
     uint32_t m_sdp_session_id { 0 };
     Buffer<1024> m_tx_sdp_buffer;
 
@@ -736,5 +756,8 @@ private:
 
     static constexpr uint32_t SOCKET_RX_TIMEOUT_MSEC = 200;
     static constexpr uint16_t LOCAL_RTP_PORT = 7078;
+    static constexpr uint32_t DEFAULT_REGISTER_EXPIRES_SEC = 3600;
+    static constexpr uint32_t MIN_REREGISTER_INTERVAL_SEC = 30;
+    static constexpr uint32_t MAX_REGISTER_BACKOFF_SEC = 32;
     static constexpr const char* TAG = "SipClient";
 };
