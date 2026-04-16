@@ -26,6 +26,11 @@ struct sip_states
             sip.register_auth();
         };
 
+        const auto action_register_retry = [](SipClientT& sip, const auto& event) {
+            (void)event;
+            sip.retry_register_on_timeout();
+        };
+
         const auto action_is_registered = [](SipClientT& sip, const auto& event) {
             sip.schedule_reregister(event.contact_expires);
             sip.is_registered();
@@ -80,7 +85,7 @@ struct sip_states
         return make_transition_table(
             *idle + event<ev_start> / action_register_unauth = "waiting_for_auth_reply"_s,
             "waiting_for_auth_reply"_s + event<ev_401_unauthorized> / action_register_auth = "waiting_for_auth_reply"_s,
-            "waiting_for_auth_reply"_s + event<ev_reply_timeout> / action_register_unauth = "waiting_for_auth_reply"_s,
+            "waiting_for_auth_reply"_s + event<ev_reply_timeout> / action_register_retry = "waiting_for_auth_reply"_s,
             "waiting_for_auth_reply"_s + event<ev_200_ok> / action_is_registered = "registered"_s,
             "waiting_for_auth_reply"_s + event<ev_500_internal_server_error> / action_rx_internal_server_error = "idle"_s,
             "registered"_s + event<ev_reregister> / action_register_unauth = "waiting_for_auth_reply"_s,
