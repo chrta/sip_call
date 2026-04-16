@@ -88,9 +88,6 @@ void sip_task(void* pvParameters)
 
 int main(int /*unused*/, char** /*unused*/) // NOLINT(bugprone-exception-escape)
 {
-    // seed for std::rand() used in the sip client
-    std::srand(static_cast<unsigned int>(time(nullptr))); // NOLINT(cert-msc32-c,cert-msc51-cpp)
-
     // Execute io_context.run() only from one thread
     asio::io_context io_context { 1 };
 
