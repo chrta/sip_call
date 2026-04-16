@@ -5,9 +5,11 @@
 
 #pragma once
 
+#include <optional>
 #include <utility>
 
 #include "sip_client_event.h"
+#include "sip_dialog.h"
 #include "sip_identifier.h"
 #include "sip_packet.h"
 #include "sip_registration.h"
@@ -34,12 +36,9 @@ public:
         , m_user(user)
         , m_pwd(std::move(pwd))
         , m_my_ip(std::move(my_ip))
-        , m_uri("sip:" + server_ip)
-        , m_to_uri("sip:" + user + "@" + server_ip)
         , m_call_id(SipIdentifier::generate())
         , m_tag(SipIdentifier::generate())
         , m_branch(SipIdentifier::generate_branch())
-        , m_caller_display(m_user)
         , m_sm(sm)
         , m_io_context(io_context)
         , m_timer(io_context)
@@ -75,8 +74,6 @@ public:
         m_server_ip = server_ip;
         m_socket.set_server_ip(server_ip);
         m_rtp_socket.set_server_ip(server_ip);
-        m_uri = "sip:" + server_ip;
-        m_to_uri = "sip:" + m_user + "@" + server_ip;
     }
 
     void set_my_ip(const std::string& my_ip)
@@ -88,7 +85,6 @@ public:
     {
         m_user = user;
         m_pwd = password;
-        m_to_uri = "sip:" + m_user + "@" + m_server_ip;
     }
 
     void set_event_handler(std::function<void(SipClientT&, const SipClientEvent&)>&& handler)
@@ -166,8 +162,6 @@ public:
         m_sip_sequence_number++;
         m_registration = {};
         ESP_LOGI(TAG, "OK :)");
-        m_uri = "sip:**613@" + m_server_ip;
-        m_to_uri = "sip:**613@" + m_server_ip;
     }
 
     void send_invite(const ev_401_unauthorized& /*unused*/)
@@ -175,12 +169,17 @@ public:
         // first ack the prev sip 401/407 packet
         send_sip_ack();
 
+        if (!m_dialog)
+        {
+            return;
+        }
+
         m_sdp_session_id = SipIdentifier::random_u32();
 
         // or sending INVITE with auth
         m_branch = SipIdentifier::generate_branch();
         m_sip_sequence_number++;
-        compute_auth_response("INVITE", m_uri);
+        compute_auth_response("INVITE", m_dialog->remote_uri);
         send_sip_invite();
     }
 
@@ -196,9 +195,12 @@ public:
     {
         ESP_LOGI(TAG, "Request to call %s...", event.local_number.c_str());
         m_call_id = SipIdentifier::generate();
-        m_uri = "sip:" + event.local_number + "@" + m_server_ip;
-        m_to_uri = "sip:" + event.local_number + "@" + m_server_ip;
-        m_caller_display = event.caller_display;
+        const std::string remote_uri = "sip:" + event.local_number + "@" + m_server_ip;
+        m_dialog = Dialog { .remote_uri = remote_uri,
+            .caller_display = event.caller_display,
+            .remote_target = {},
+            .remote_tag = {},
+            .route_set = {} };
         m_sm.process_event(ev_initiate_call {});
     }
 
@@ -241,6 +243,7 @@ public:
         m_tag = SipIdentifier::generate();
         m_branch = SipIdentifier::generate_branch();
         m_sip_sequence_number++;
+        m_dialog.reset();
     }
 
     void call_declined(const ev_486_busy_here& /*unused*/)
@@ -249,6 +252,7 @@ public:
         {
             m_event_handler(m_sip_client, SipClientEvent { .event = SipClientEvent::Event::CALL_CANCELLED, .cancel_reason = SipClientEvent::CancelReason::TARGET_BUSY });
         }
+        m_dialog.reset();
     }
 
     void call_declined(const ev_603_decline& /*unused*/)
@@ -257,6 +261,7 @@ public:
         {
             m_event_handler(m_sip_client, SipClientEvent { .event = SipClientEvent::Event::CALL_CANCELLED, .cancel_reason = SipClientEvent::CancelReason::CALL_DECLINED });
         }
+        m_dialog.reset();
     }
 
     void handle_bye()
@@ -266,6 +271,7 @@ public:
         {
             m_event_handler(m_sip_client, SipClientEvent { .event = SipClientEvent::Event::CALL_END });
         }
+        m_dialog.reset();
     }
 
     void handle_internal_server_error()
@@ -321,18 +327,22 @@ private:
             send_sip_ok(packet);
         }
 
-        if (!packet.get_contact().empty())
+        if (m_dialog)
         {
-            m_to_contact = packet.get_contact();
+            if (!packet.get_contact().empty())
+            {
+                m_dialog->remote_target = packet.get_contact();
+            }
+            if (!packet.get_to_tag().empty())
+            {
+                m_dialog->remote_tag = packet.get_to_tag();
+            }
+            const auto& packet_record_route = packet.get_record_route();
+            if (!packet_record_route.front().empty())
+            {
+                m_dialog->route_set = packet_record_route;
+            }
         }
-
-        if (!packet.get_to_tag().empty())
-        {
-            m_to_tag = packet.get_to_tag();
-        }
-
-        /* TODO: only copy record route, when not empty */
-        m_record_route = packet.get_record_route();
 
         if ((reply == SipPacket::Status::UNAUTHORIZED_401) || (reply == SipPacket::Status::PROXY_AUTH_REQ_407))
         {
@@ -386,7 +396,8 @@ private:
 
         // Do not accept calls to e.g. **9 on fritzbox from self.
         // But immediately pick up all other calls, also to **9 from other participants.
-        if ((packet.get_method() == SipPacket::Method::INVITE) && (packet.get_from().rfind(m_caller_display + "\"", 1) != 1))
+        const std::string self_display = m_dialog ? m_dialog->caller_display : m_user;
+        if ((packet.get_method() == SipPacket::Method::INVITE) && (packet.get_from().rfind(self_display + "\"", 1) != 1))
         {
             ESP_LOGV(TAG, "Accept invite from : '%s'", packet.get_from().c_str());
             send_sip_ok(packet);
@@ -429,9 +440,14 @@ private:
 
     void send_sip_invite()
     {
+        if (!m_dialog)
+        {
+            return;
+        }
+        const std::string& remote_uri = m_dialog->remote_uri;
         TxBufferT& tx_buffer = m_socket.get_new_tx_buf();
 
-        send_sip_header("INVITE", m_uri, m_to_uri, tx_buffer);
+        send_sip_header("INVITE", remote_uri, remote_uri, tx_buffer);
 
         tx_buffer << "Contact: \"" << m_user << "\" <sip:" << m_user << "@" << m_my_ip << ":" << LOCAL_PORT << ";transport=" << TRANSPORT_LOWER << ">\r\n";
 
@@ -441,7 +457,7 @@ private:
             {
                 tx_buffer << "Proxy-";
             }
-            tx_buffer << "Authorization: Digest username=\"" << m_user << "\", realm=\"" << m_registration.realm << "\", nonce=\"" << m_registration.nonce << "\", uri=\"" << m_uri << "\", response=\"" << m_registration.response << "\"\r\n";
+            tx_buffer << "Authorization: Digest username=\"" << m_user << "\", realm=\"" << m_registration.realm << "\", nonce=\"" << m_registration.nonce << "\", uri=\"" << remote_uri << "\", response=\"" << m_registration.response << "\"\r\n";
         }
         tx_buffer << "Content-Type: application/sdp\r\n";
         tx_buffer << "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO\r\n";
@@ -472,15 +488,20 @@ private:
      */
     void send_sip_cancel()
     {
+        if (!m_dialog)
+        {
+            return;
+        }
+        const std::string& remote_uri = m_dialog->remote_uri;
         TxBufferT& tx_buffer = m_socket.get_new_tx_buf();
 
-        send_sip_header("CANCEL", m_uri, m_to_uri, tx_buffer);
+        send_sip_header("CANCEL", remote_uri, remote_uri, tx_buffer);
 
         if (!m_registration.response.empty())
         {
             tx_buffer << "Contact: \"" << m_user << "\" <sip:" << m_user << "@" << m_my_ip << ":" << LOCAL_PORT << ";transport=" << TRANSPORT_LOWER << ">\r\n";
             tx_buffer << "Content-Type: application/sdp\r\n";
-            tx_buffer << "Authorization: Digest username=\"" << m_user << "\", realm=\"" << m_registration.realm << "\", nonce=\"" << m_registration.nonce << "\", uri=\"" << m_uri << "\", response=\"" << m_registration.response << "\"\r\n";
+            tx_buffer << "Authorization: Digest username=\"" << m_user << "\", realm=\"" << m_registration.realm << "\", nonce=\"" << m_registration.nonce << "\", uri=\"" << remote_uri << "\", response=\"" << m_registration.response << "\"\r\n";
         }
         tx_buffer << "Content-Length: 0\r\n";
         tx_buffer << "\r\n";
@@ -491,14 +512,10 @@ private:
     void send_sip_ack()
     {
         TxBufferT& tx_buffer = m_socket.get_new_tx_buf();
-        if (!m_to_contact.empty())
-        {
-            send_sip_header("ACK", m_to_contact, m_to_uri, tx_buffer);
-        }
-        else
-        {
-            send_sip_header("ACK", m_uri, m_to_uri, tx_buffer);
-        }
+        const std::string& request_uri = !m_dialog->remote_target.empty()
+            ? m_dialog->remote_target
+            : m_dialog->remote_uri;
+        send_sip_header("ACK", request_uri, m_dialog->remote_uri, tx_buffer);
         // std::string m_sdp_session_o;
         // std::string m_sdp_session_s;
         // std::string m_sdp_session_c;
@@ -554,9 +571,9 @@ private:
         {
             stream << "From: <sip:" << m_user << "@" << m_server_ip << ">;tag=" << m_tag << "\r\n";
         }
-        else if (command == "INVITE")
+        else if (command == "INVITE" && m_dialog)
         {
-            stream << "From: \"" << m_caller_display << "\" <sip:" << m_user << "@" << m_server_ip << ">;tag=" << m_tag << "\r\n";
+            stream << "From: \"" << m_dialog->caller_display << "\" <sip:" << m_user << "@" << m_server_ip << ">;tag=" << m_tag << "\r\n";
         }
         else
         {
@@ -564,17 +581,17 @@ private:
         }
         stream << "Via: SIP/2.0/" << TRANSPORT_UPPER << " " << m_my_ip << ":" << LOCAL_PORT << ";branch=" << m_branch << ";rport\r\n";
 
-        if ((command == "ACK") && !m_to_tag.empty())
+        if ((command == "ACK") && m_dialog && !m_dialog->remote_tag.empty())
         {
-            stream << "To: <" << to_uri << ">;tag=" << m_to_tag << "\r\n";
+            stream << "To: <" << to_uri << ">;tag=" << m_dialog->remote_tag << "\r\n";
         }
         else
         {
             stream << "To: <" << to_uri << ">\r\n";
         }
-        if (command == "ACK")
+        if ((command == "ACK") && m_dialog)
         {
-            for (auto it = std::crbegin(m_record_route); it != std::crend(m_record_route); ++it) // NOLINT(modernize-loop-convert)
+            for (auto it = std::crbegin(m_dialog->route_set); it != std::crend(m_dialog->route_set); ++it) // NOLINT(modernize-loop-convert)
             {
                 if (it->empty())
                 {
@@ -690,23 +707,14 @@ private:
     std::string m_pwd;
     std::string m_my_ip;
 
-    std::string m_uri;
-    std::string m_to_uri;
-    std::string m_to_contact;
-    std::string m_to_tag;
-
-    SipPacket::RecordRouteT m_record_route;
-
     uint32_t m_sip_sequence_number { SipIdentifier::random_u32() & 0x7FFFFFFFU };
     std::string m_call_id;
 
     Registration m_registration;
+    std::optional<Dialog> m_dialog;
 
     std::string m_tag;
     std::string m_branch;
-
-    // misc stuff
-    std::string m_caller_display;
 
     uint32_t m_sdp_session_id { 0 };
     Buffer<1024> m_tx_sdp_buffer;
