@@ -1,6 +1,4 @@
-# only for cmake --version >= 3.5.1
-cmake_minimum_required(VERSION 3.5.1)
-
+cmake_minimum_required(VERSION 3.10)
 
 set(PEDANTIC_WARNINGS false CACHE BOOL "Enable pedantic compiler warnings")
 
@@ -33,7 +31,7 @@ add_executable(sip-client ${SOURCES})
 target_link_libraries(sip-client mbedcrypto ${CMAKE_THREAD_LIBS_INIT})
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" AND ${PEDANTIC_WARNINGS})
-  target_compile_options(sip-client PRIVATE -Wall -Wextra -Weverything -Wno-c++98-compat -Wno-format-nonliteral -Wno-gnu-zero-variadic-macro-arguments -Wno-c++98-compat-pedantic -Wno-deprecated-declarations)
+  target_compile_options(sip-client PRIVATE -Wall -Wextra -Weverything -Wno-c++98-compat -Wno-format-nonliteral -Wno-gnu-zero-variadic-macro-arguments -Wno-c++98-compat-pedantic -Wno-deprecated-declarations -Wno-unsafe-buffer-usage)
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" AND ${PEDANTIC_WARNINGS})
   target_compile_options(sip-client PRIVATE -Wall -Wextra -Wno-c++98-compat -Wno-format-nonliteral -Wno-gnu-zero-variadic-macro-arguments -Wno-c++98-compat-pedantic -Wno-deprecated-declarations -pedantic)
 else()
