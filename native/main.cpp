@@ -45,7 +45,7 @@ struct handlers_t
     asio::io_context& io_context;
 };
 
-static void sip_task(void* pvParameters);
+namespace {
 
 void sip_task(void* pvParameters)
 {
@@ -95,10 +95,12 @@ void sip_task(void* pvParameters)
     }
 }
 
-int main(int /*unused*/, char** /*unused*/)
+} // namespace
+
+int main(int /*unused*/, char** /*unused*/) // NOLINT(bugprone-exception-escape)
 {
     // seed for std::rand() used in the sip client
-    std::srand(static_cast<unsigned int>(time(nullptr)));
+    std::srand(static_cast<unsigned int>(time(nullptr))); // NOLINT(cert-msc32-c,cert-msc51-cpp)
 
     // Execute io_context.run() only from one thread
     asio::io_context io_context { 1 };
@@ -107,7 +109,7 @@ int main(int /*unused*/, char** /*unused*/)
 
     KeyboardInput input { io_context };
 
-    handlers_t handlers { client, input, io_context };
+    handlers_t handlers { .client = client, .input = input, .io_context = io_context };
 
     sip_task(&handlers);
 }

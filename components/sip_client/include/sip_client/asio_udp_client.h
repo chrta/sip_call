@@ -63,7 +63,8 @@ public:
     }
 
     template <typename T>
-    std::enable_if_t<std::is_unsigned_v<T>, Buffer<SIZE>&> operator<<(T i)
+        requires std::is_unsigned_v<T>
+    Buffer<SIZE>& operator<<(T i)
     {
         snprintf(m_buffer.data() + strlen(m_buffer.data()), m_buffer.size() - strlen(m_buffer.data()), "%u", static_cast<unsigned>(i));
         return *this;
@@ -151,7 +152,7 @@ public:
 
         ESP_LOGI(TAG, "DNS lookup succeeded. IP=%s", m_destination_endpoint.address().to_string().c_str());
 
-        m_socket.open(asio::ip::udp::v4(), ec);
+        m_socket.open(asio::ip::udp::v4(), ec); // NOLINT(bugprone-unused-return-value,cert-err33-c)
 
         if (ec)
         {
@@ -160,7 +161,7 @@ public:
         }
         ESP_LOGI(TAG, "... opened socket %d\r\n", m_socket.native_handle());
 
-        m_socket.bind(asio::ip::udp::endpoint(asio::ip::udp::v4(), m_local_port), ec);
+        m_socket.bind(asio::ip::udp::endpoint(asio::ip::udp::v4(), m_local_port), ec); // NOLINT(bugprone-unused-return-value,cert-err33-c)
 
         if (ec)
         {
