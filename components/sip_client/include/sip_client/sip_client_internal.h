@@ -10,6 +10,7 @@
 #include "sip_client_event.h"
 #include "sip_identifier.h"
 #include "sip_packet.h"
+#include "sip_registration.h"
 #include "sip_sml_events.h"
 #include "sip_sml_logger.h"
 
@@ -163,10 +164,7 @@ public:
     void is_registered()
     {
         m_sip_sequence_number++;
-        m_nonce = "";
-        m_realm = "";
-        m_proxy_auth = false;
-        m_response = "";
+        m_registration = {};
         ESP_LOGI(TAG, "OK :)");
         m_uri = "sip:**613@" + m_server_ip;
         m_to_uri = "sip:**613@" + m_server_ip;
@@ -314,9 +312,9 @@ private:
         }
         if ((reply == SipPacket::Status::UNAUTHORIZED_401) || (reply == SipPacket::Status::PROXY_AUTH_REQ_407))
         {
-            m_realm = packet.get_realm();
-            m_nonce = packet.get_nonce();
-            m_proxy_auth = (reply == SipPacket::Status::PROXY_AUTH_REQ_407);
+            m_registration.realm = packet.get_realm();
+            m_registration.nonce = packet.get_nonce();
+            m_registration.proxy_auth = (reply == SipPacket::Status::PROXY_AUTH_REQ_407);
         }
         else if ((reply == SipPacket::Status::UNKNOWN) && ((packet.get_method() == SipPacket::Method::NOTIFY) || (packet.get_method() == SipPacket::Method::BYE) || (packet.get_method() == SipPacket::Method::INFO)))
         {
@@ -410,9 +408,9 @@ private:
 
         tx_buffer << "Contact: \"" << m_user << "\" <sip:" << m_user << "@" << m_my_ip << ":" << LOCAL_PORT << ";transport=" << TRANSPORT_LOWER << ">\r\n";
 
-        if (!m_response.empty())
+        if (!m_registration.response.empty())
         {
-            tx_buffer << "Authorization: Digest username=\"" << m_user << "\", realm=\"" << m_realm << "\", nonce=\"" << m_nonce << "\", uri=\"" << uri << "\", algorithm=MD5, response=\"" << m_response << "\"\r\n";
+            tx_buffer << "Authorization: Digest username=\"" << m_user << "\", realm=\"" << m_registration.realm << "\", nonce=\"" << m_registration.nonce << "\", uri=\"" << uri << "\", algorithm=MD5, response=\"" << m_registration.response << "\"\r\n";
         }
         tx_buffer << "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO\r\n";
         tx_buffer << "Expires: 3600\r\n";
@@ -437,13 +435,13 @@ private:
 
         tx_buffer << "Contact: \"" << m_user << "\" <sip:" << m_user << "@" << m_my_ip << ":" << LOCAL_PORT << ";transport=" << TRANSPORT_LOWER << ">\r\n";
 
-        if (!m_response.empty())
+        if (!m_registration.response.empty())
         {
-            if (m_proxy_auth)
+            if (m_registration.proxy_auth)
             {
                 tx_buffer << "Proxy-";
             }
-            tx_buffer << "Authorization: Digest username=\"" << m_user << "\", realm=\"" << m_realm << "\", nonce=\"" << m_nonce << "\", uri=\"" << m_uri << "\", response=\"" << m_response << "\"\r\n";
+            tx_buffer << "Authorization: Digest username=\"" << m_user << "\", realm=\"" << m_registration.realm << "\", nonce=\"" << m_registration.nonce << "\", uri=\"" << m_uri << "\", response=\"" << m_registration.response << "\"\r\n";
         }
         tx_buffer << "Content-Type: application/sdp\r\n";
         tx_buffer << "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO\r\n";
@@ -478,11 +476,11 @@ private:
 
         send_sip_header("CANCEL", m_uri, m_to_uri, tx_buffer);
 
-        if (!m_response.empty())
+        if (!m_registration.response.empty())
         {
             tx_buffer << "Contact: \"" << m_user << "\" <sip:" << m_user << "@" << m_my_ip << ":" << LOCAL_PORT << ";transport=" << TRANSPORT_LOWER << ">\r\n";
             tx_buffer << "Content-Type: application/sdp\r\n";
-            tx_buffer << "Authorization: Digest username=\"" << m_user << "\", realm=\"" << m_realm << "\", nonce=\"" << m_nonce << "\", uri=\"" << m_uri << "\", response=\"" << m_response << "\"\r\n";
+            tx_buffer << "Authorization: Digest username=\"" << m_user << "\", realm=\"" << m_registration.realm << "\", nonce=\"" << m_registration.nonce << "\", uri=\"" << m_uri << "\", response=\"" << m_registration.response << "\"\r\n";
         }
         tx_buffer << "Content-Length: 0\r\n";
         tx_buffer << "\r\n";
@@ -641,8 +639,8 @@ private:
         std::string ha2_text;
         std::array<unsigned char, 16> hash {};
 
-        m_response = "";
-        std::string data = m_user + ":" + m_realm + ":" + m_pwd;
+        m_registration.response.clear();
+        std::string data = m_user + ":" + m_registration.realm + ":" + m_pwd;
 
         m_md5.start();
         m_md5.update(data);
@@ -660,14 +658,14 @@ private:
         ESP_LOGV(TAG, "Calculating md5 for : %s", data.c_str());
         ESP_LOGV(TAG, "Hex ha2 is %s", ha2_text.c_str());
 
-        data = ha1_text + ":" + m_nonce + ":" + ha2_text;
+        data = ha1_text + ":" + m_registration.nonce + ":" + ha2_text;
 
         m_md5.start();
         m_md5.update(data);
         m_md5.finish(hash);
-        to_hex(m_response, hash);
+        to_hex(m_registration.response, hash);
         ESP_LOGV(TAG, "Calculating md5 for : %s", data.c_str());
-        ESP_LOGV(TAG, "Hex response is %s", m_response.c_str());
+        ESP_LOGV(TAG, "Hex response is %s", m_registration.response.c_str());
     }
 
     void to_hex(std::string& dest, const std::array<unsigned char, 16>& data)
@@ -702,11 +700,7 @@ private:
     uint32_t m_sip_sequence_number { SipIdentifier::random_u32() & 0x7FFFFFFFU };
     std::string m_call_id;
 
-    // auth stuff
-    std::string m_response;
-    std::string m_realm;
-    std::string m_nonce;
-    bool m_proxy_auth { false };
+    Registration m_registration;
 
     std::string m_tag;
     std::string m_branch;
