@@ -42,6 +42,8 @@ public:
     {
     }
 
+    ~SipClient() = default;
+
     SipClient(const SipClient&) = delete;
     SipClient(SipClient&&) = delete;
 

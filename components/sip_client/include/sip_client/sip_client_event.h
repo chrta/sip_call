@@ -16,9 +16,11 @@
 
 #pragma once
 
+#include <cstdint>
+
 struct SipClientEvent
 {
-    enum class Event
+    enum class Event : uint8_t
     {
         CALL_START,
         CALL_CANCELLED,
@@ -26,7 +28,7 @@ struct SipClientEvent
         BUTTON_PRESS,
     };
 
-    enum class CancelReason
+    enum class CancelReason : uint8_t
     {
         UNKNOWN,
         CALL_DECLINED,

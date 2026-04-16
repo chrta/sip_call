@@ -21,7 +21,7 @@ namespace sml = boost::sml;
 template <class SipClientT>
 struct sip_states
 {
-    auto operator()() const noexcept
+    auto operator()() const noexcept // NOLINT(bugprone-exception-escape)
     {
         using namespace sml;
 

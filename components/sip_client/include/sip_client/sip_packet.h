@@ -18,12 +18,13 @@
 
 #include "esp_log.h"
 #include <array>
+#include <cstdint>
 #include <cstring>
 
 class SipPacket
 {
 public:
-    enum class Status
+    enum class Status : uint8_t
     {
         TRYING_100,
         SESSION_PROGRESS_183,
@@ -37,7 +38,7 @@ public:
         UNKNOWN,
     };
 
-    enum class Method
+    enum class Method : uint8_t
     {
         NOTIFY,
         BYE,
@@ -46,7 +47,7 @@ public:
         UNKNOWN
     };
 
-    enum class ContentType
+    enum class ContentType : uint8_t
     {
         APPLICATION_DTMF_RELAY,
         UNKNOWN
@@ -461,8 +462,9 @@ private:
             return Status::PROXY_AUTH_REQ_407;
         case 603:
             return Status::DECLINE_603;
+        default:
+            return Status::UNKNOWN;
         }
-        return Status::UNKNOWN;
     }
 
     static Method convert_method(const char* input)

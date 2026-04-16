@@ -42,7 +42,7 @@ public:
 
     void update(const std::string& input)
     {
-        const psa_status_t status = psa_hash_update(&operation, reinterpret_cast<const unsigned char*>(input.c_str()), input.size());
+        const psa_status_t status = psa_hash_update(&operation, reinterpret_cast<const unsigned char*>(input.c_str()), input.size()); // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
         assert(status == PSA_SUCCESS);
     }
 

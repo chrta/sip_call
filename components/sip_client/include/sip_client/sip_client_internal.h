@@ -116,7 +116,7 @@ public:
     {
         asio::dispatch(m_io_context, [this, local_number, caller_display]() {
             ESP_LOGI(TAG, "Request to call %s...", local_number.c_str());
-            this->m_sm.process_event(ev_request_call { local_number, caller_display });
+            this->m_sm.process_event(ev_request_call { .local_number = local_number, .caller_display = caller_display });
         });
     }
 
@@ -230,7 +230,7 @@ public:
         // received an invite, answered it already with ok, so new call is established, because someone called us
         if (m_event_handler)
         {
-            m_event_handler(m_sip_client, SipClientEvent { SipClientEvent::Event::CALL_START });
+            m_event_handler(m_sip_client, SipClientEvent { .event = SipClientEvent::Event::CALL_START });
         }
     }
 
@@ -240,7 +240,7 @@ public:
         send_sip_ack();
         if (m_event_handler)
         {
-            m_event_handler(m_sip_client, SipClientEvent { SipClientEvent::Event::CALL_START });
+            m_event_handler(m_sip_client, SipClientEvent { .event = SipClientEvent::Event::CALL_START });
         }
     }
 
@@ -248,7 +248,7 @@ public:
     {
         if (m_event_handler)
         {
-            m_event_handler(m_sip_client, SipClientEvent { SipClientEvent::Event::CALL_CANCELLED });
+            m_event_handler(m_sip_client, SipClientEvent { .event = SipClientEvent::Event::CALL_CANCELLED });
         }
         send_sip_ack();
         m_tag = std::rand() % 2147483647;
@@ -260,7 +260,7 @@ public:
     {
         if (m_event_handler)
         {
-            m_event_handler(m_sip_client, SipClientEvent { SipClientEvent::Event::CALL_CANCELLED, ' ', 0, SipClientEvent::CancelReason::TARGET_BUSY });
+            m_event_handler(m_sip_client, SipClientEvent { .event = SipClientEvent::Event::CALL_CANCELLED, .cancel_reason = SipClientEvent::CancelReason::TARGET_BUSY });
         }
     }
 
@@ -268,7 +268,7 @@ public:
     {
         if (m_event_handler)
         {
-            m_event_handler(m_sip_client, SipClientEvent { SipClientEvent::Event::CALL_CANCELLED, ' ', 0, SipClientEvent::CancelReason::CALL_DECLINED });
+            m_event_handler(m_sip_client, SipClientEvent { .event = SipClientEvent::Event::CALL_CANCELLED, .cancel_reason = SipClientEvent::CancelReason::CALL_DECLINED });
         }
     }
 
@@ -277,7 +277,7 @@ public:
         m_sip_sequence_number++;
         if (m_event_handler)
         {
-            m_event_handler(m_sip_client, SipClientEvent { SipClientEvent::Event::CALL_END });
+            m_event_handler(m_sip_client, SipClientEvent { .event = SipClientEvent::Event::CALL_END });
         }
     }
 
@@ -393,7 +393,7 @@ private:
         {
             if (m_event_handler)
             {
-                m_event_handler(m_sip_client, SipClientEvent { SipClientEvent::Event::BUTTON_PRESS, packet.get_dtmf_signal(), packet.get_dtmf_duration() });
+                m_event_handler(m_sip_client, SipClientEvent { .event = SipClientEvent::Event::BUTTON_PRESS, .button_signal = packet.get_dtmf_signal(), .button_duration = packet.get_dtmf_duration() });
             }
         }
 
@@ -589,7 +589,7 @@ private:
         }
         if (command == "ACK")
         {
-            for (auto it = std::crbegin(m_record_route); it != std::crend(m_record_route); ++it)
+            for (auto it = std::crbegin(m_record_route); it != std::crend(m_record_route); ++it) // NOLINT(modernize-loop-convert)
             {
                 if (it->empty())
                 {
