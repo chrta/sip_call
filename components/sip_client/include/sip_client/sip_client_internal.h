@@ -321,6 +321,19 @@ public:
         });
     }
 
+    void handle_reply_timeout()
+    {
+        ESP_LOGW(TAG, "SIP transaction timeout, aborting");
+        if (m_event_handler)
+        {
+            m_event_handler(m_sip_client, SipClientEvent { .event = SipClientEvent::Event::CALL_CANCELLED });
+        }
+        m_tag = SipIdentifier::generate();
+        m_branch = SipIdentifier::generate_branch();
+        m_sip_sequence_number++;
+        m_dialog.reset();
+    }
+
 private:
     void rx(std::string recv_string)
     {
@@ -459,7 +472,12 @@ private:
         tx_buffer << "\r\n";
 
         m_socket.send_buffered_data();
-        m_command_timeout_timer.expires_after(asio::chrono::seconds(5));
+        arm_command_timeout();
+    }
+
+    void arm_command_timeout()
+    {
+        m_command_timeout_timer.expires_after(asio::chrono::seconds(COMMAND_TIMEOUT_SEC));
         m_command_timeout_timer.async_wait([this](const asio::error_code& ec) {
             if (!ec)
             {
@@ -507,6 +525,7 @@ private:
         tx_buffer << m_tx_sdp_buffer.data();
 
         m_socket.send_buffered_data();
+        arm_command_timeout();
     }
 
     /**
@@ -537,6 +556,7 @@ private:
         tx_buffer << "\r\n";
 
         m_socket.send_buffered_data();
+        arm_command_timeout();
     }
 
     void send_sip_ack(AckKind kind)
@@ -794,5 +814,6 @@ private:
     static constexpr uint32_t DEFAULT_REGISTER_EXPIRES_SEC = 3600;
     static constexpr uint32_t MIN_REREGISTER_INTERVAL_SEC = 30;
     static constexpr uint32_t MAX_REGISTER_BACKOFF_SEC = 32;
+    static constexpr uint32_t COMMAND_TIMEOUT_SEC = 5;
     static constexpr const char* TAG = "SipClient";
 };
