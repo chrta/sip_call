@@ -9,6 +9,8 @@
 #include <esp_http_server.h>
 #include <esp_log.h>
 #include <esp_ota_ops.h>
+#include <memory>
+#include <string>
 
 extern const char index_start[] asm("_binary_index_html_start");
 extern const char index_end[] asm("_binary_index_html_end");
@@ -26,9 +28,9 @@ private:
      */
     struct async_resp_arg
     {
-        httpd_handle_t hd;
-        int fd;
-        SipClientEvent event;
+        httpd_handle_t hd { nullptr };
+        int fd { 0 };
+        std::string payload;
 
         bool is_used() const
         {
@@ -366,17 +368,25 @@ private:
         {
             if (s.is_used())
             {
-                s.event = event;
-                trigger_async_send(s);
+                trigger_async_send(s, event);
             }
         }
     }
 
-    esp_err_t trigger_async_send(const async_resp_arg& arg)
+    esp_err_t trigger_async_send(const async_resp_arg& slot, const SipClientEvent& event)
     {
-        async_resp_arg* resp_arg = static_cast<async_resp_arg*>(malloc(sizeof(struct async_resp_arg)));
-        *resp_arg = arg;
-        return httpd_queue_work(server, ws_async_send, resp_arg);
+        auto resp_arg = std::make_unique<async_resp_arg>();
+        resp_arg->hd = slot.hd;
+        resp_arg->fd = slot.fd;
+        resp_arg->payload = to_json(event);
+        const esp_err_t err = httpd_queue_work(server, ws_async_send, resp_arg.get());
+        if (err == ESP_OK)
+        {
+            // Ownership transferred to ws_async_send, which wraps the raw
+            // pointer in a unique_ptr to free it when the send completes.
+            (void)resp_arg.release();
+        }
+        return err;
     }
 
     static esp_err_t static_index_get_handler(httpd_req_t* req)
@@ -423,19 +433,14 @@ private:
 
     static void ws_async_send(void* arg)
     {
-        async_resp_arg* resp_arg = static_cast<async_resp_arg*>(arg);
-        httpd_handle_t hd = resp_arg->hd;
-        int fd = resp_arg->fd;
-        const SipClientEvent event = resp_arg->event;
-        std::string data = to_json(event);
+        std::unique_ptr<async_resp_arg> resp_arg { static_cast<async_resp_arg*>(arg) };
         httpd_ws_frame_t ws_pkt;
         memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
-        ws_pkt.payload = (uint8_t*)data.c_str();
-        ws_pkt.len = data.size();
+        ws_pkt.payload = reinterpret_cast<uint8_t*>(resp_arg->payload.data());
+        ws_pkt.len = resp_arg->payload.size();
         ws_pkt.type = HTTPD_WS_TYPE_TEXT;
 
-        httpd_ws_send_frame_async(hd, fd, &ws_pkt);
-        free(resp_arg);
+        httpd_ws_send_frame_async(resp_arg->hd, resp_arg->fd, &ws_pkt);
     }
 
     const httpd_uri_t index_page {
