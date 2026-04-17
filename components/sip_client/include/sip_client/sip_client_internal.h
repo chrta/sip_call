@@ -231,12 +231,26 @@ public:
 
     void cancel_call(const ev_cancel_call& /*unused*/)
     {
-        ESP_LOGD(TAG, "Sending cancel request");
+        ESP_LOGD(TAG, "Sending CANCEL for pending INVITE");
         send_sip_cancel();
+    }
 
-        // TODO: if call in progress, send bye
-        // ESP_LOGD(TAG, "Sending bye request");
-        // send_sip_bye();
+    void end_call(const ev_cancel_call& /*unused*/)
+    {
+        ESP_LOGD(TAG, "Sending BYE for established call");
+        send_sip_bye();
+    }
+
+    void bye_completed()
+    {
+        if (m_event_handler)
+        {
+            m_event_handler(m_sip_client, SipClientEvent { .event = SipClientEvent::Event::CALL_END });
+        }
+        m_tag = SipIdentifier::generate();
+        m_branch = SipIdentifier::generate_branch();
+        m_sip_sequence_number++;
+        m_dialog.reset();
     }
 
     void handle_invite(const ev_rx_invite& /*unused*/)
@@ -559,6 +573,33 @@ private:
         arm_command_timeout();
     }
 
+    /**
+     * BYE an established dialog.
+     *
+     * RFC 3261 §15.1.1: BYE runs in its own transaction. It targets the
+     * remote target learned from the dialog and carries a fresh branch
+     * and CSeq.
+     */
+    void send_sip_bye()
+    {
+        if (!m_dialog)
+        {
+            return;
+        }
+        m_branch = SipIdentifier::generate_branch();
+
+        TxBufferT& tx_buffer = m_socket.get_new_tx_buf();
+        const std::string& request_uri = !m_dialog->remote_target.empty()
+            ? m_dialog->remote_target
+            : m_dialog->remote_uri;
+        send_sip_header("BYE", request_uri, m_dialog->remote_uri, tx_buffer);
+        tx_buffer << "Content-Length: 0\r\n";
+        tx_buffer << "\r\n";
+
+        m_socket.send_buffered_data();
+        arm_command_timeout();
+    }
+
     void send_sip_ack(AckKind kind)
     {
         if (!m_dialog)
@@ -642,7 +683,8 @@ private:
         }
         stream << "Via: SIP/2.0/" << TRANSPORT_UPPER << " " << m_my_ip << ":" << LOCAL_PORT << ";branch=" << m_branch << ";rport\r\n";
 
-        if ((command == "ACK") && m_dialog && !m_dialog->remote_tag.empty())
+        const bool is_in_dialog_request = (command == "ACK") || (command == "BYE");
+        if (is_in_dialog_request && m_dialog && !m_dialog->remote_tag.empty())
         {
             stream << "To: <" << to_uri << ">;tag=" << m_dialog->remote_tag << "\r\n";
         }
@@ -650,7 +692,7 @@ private:
         {
             stream << "To: <" << to_uri << ">\r\n";
         }
-        if ((command == "ACK") && m_dialog)
+        if (is_in_dialog_request && m_dialog)
         {
             for (auto it = std::crbegin(m_dialog->route_set); it != std::crend(m_dialog->route_set); ++it) // NOLINT(modernize-loop-convert)
             {
