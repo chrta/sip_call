@@ -425,19 +425,32 @@ private:
         {
             return false;
         }
-        if (*(pos + strlen(param_name)) != '=')
+        pos += strlen(param_name);
+        if (*pos != '=')
         {
             return false;
         }
-
-        if (*(pos + strlen(param_name) + 1) != '"')
+        ++pos;
+        if (*pos == '"')
         {
-            return false;
+            // Quoted form: value runs up to the next unescaped double quote.
+            ++pos;
+            const char* pos_end = strchr(pos, '"');
+            if (pos_end == nullptr)
+            {
+                return false;
+            }
+            output = std::string(pos, pos_end);
+            return true;
         }
-
-        pos += strlen(param_name) + 2;
-        const char* pos_end = strchr(pos, '"');
-        if (pos_end == nullptr)
+        // Token form (RFC 3261 §25.1): ends at ',' ';' or LWS.
+        const char* pos_end = pos;
+        while (*pos_end != '\0' && *pos_end != ',' && *pos_end != ';'
+            && *pos_end != ' ' && *pos_end != '\t')
+        {
+            ++pos_end;
+        }
+        if (pos_end == pos)
         {
             return false;
         }
