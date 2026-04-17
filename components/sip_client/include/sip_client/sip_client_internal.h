@@ -745,24 +745,6 @@ private:
         stream << "Max-Forwards: 70\r\n";
     }
 
-    bool read_param(const std::string& line, const std::string& param_name, std::string& output)
-    {
-        const std::string param(param_name + "=\"");
-        size_t pos = line.find(param);
-        if (pos == std::string::npos)
-        {
-            return false;
-        }
-        pos += param.size();
-        const size_t pos_end = line.find('\"', pos);
-        if (pos_end == std::string::npos)
-        {
-            return false;
-        }
-        output = line.substr(pos, pos_end - pos);
-        return true;
-    }
-
     void compute_auth_response(const std::string& method, const std::string& uri)
     {
         std::string ha1_text;
