@@ -211,9 +211,10 @@ private:
             char* next_start_position = end_position + LINE_ENDING_LEN;
             line_number++;
 
-            // create a proper null terminated c string
-            // from here on string functions may be used!
-            memset(end_position, 0, LINE_ENDING_LEN);
+            // Null-terminate this line in place by replacing the leading
+            // byte of the CRLF. That is enough for the C string functions
+            // used below; the second byte is never read.
+            *end_position = '\0';
             ESP_LOGV(TAG, "Parsing line: %s", start_position);
 
             if (strstr(start_position, SIP_2_0_SPACE) == start_position)
@@ -364,9 +365,10 @@ private:
 
             char* next_start_position = end_position + LINE_ENDING_LEN;
 
-            // create a proper null terminated c string
-            // from here on string functions may be used!
-            memset(end_position, 0, LINE_ENDING_LEN);
+            // Null-terminate this line in place by replacing the leading
+            // byte of the CRLF. That is enough for the C string functions
+            // used below; the second byte is never read.
+            *end_position = '\0';
             ESP_LOGV(TAG, "Parsing line: %s", start_position);
 
             if (strstr(start_position, SIGNAL) == start_position)
