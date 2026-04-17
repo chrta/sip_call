@@ -82,6 +82,11 @@ struct sip_states
             sip.handle_internal_server_error();
         };
 
+        const auto action_reply_timeout = [](SipClientT& sip, const auto& event) {
+            (void)event;
+            sip.handle_reply_timeout();
+        };
+
         return make_transition_table(
             *idle + event<ev_start> / action_register_unauth = "waiting_for_auth_reply"_s,
             "waiting_for_auth_reply"_s + event<ev_401_unauthorized> / action_register_auth = "waiting_for_auth_reply"_s,
@@ -102,12 +107,14 @@ struct sip_states
             "calling"_s + event<ev_486_busy_here> / action_call_declined = "registered"_s,
             "calling"_s + event<ev_603_decline> / action_call_declined = "registered"_s,
             "calling"_s + event<ev_reregister> / action_retry_reregistered = "calling"_s,
+            "calling"_s + event<ev_reply_timeout> / action_reply_timeout = "registered"_s,
             "calling"_s + event<ev_start> / action_register_unauth = "waiting_for_auth_reply"_s,
             "call_established"_s + event<ev_rx_bye> / action_rx_bye = "registered"_s,
             "call_established"_s + event<ev_200_ok> = X,
             "call_established"_s + event<ev_reregister> / action_retry_reregistered = "call_established"_s,
             "call_established"_s + event<ev_start> / action_register_unauth = "waiting_for_auth_reply"_s,
             "cancelling"_s + event<ev_200_ok> = "cancelling"_s,
-            "cancelling"_s + event<ev_487_request_cancelled> / action_call_cancelled = "registered"_s);
+            "cancelling"_s + event<ev_487_request_cancelled> / action_call_cancelled = "registered"_s,
+            "cancelling"_s + event<ev_reply_timeout> / action_reply_timeout = "registered"_s);
     }
 };
