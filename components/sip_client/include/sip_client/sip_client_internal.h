@@ -6,6 +6,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cstdint>
 #include <optional>
 #include <utility>
 
@@ -25,6 +26,12 @@ template <class SocketT, class Md5T, template <typename> typename SmT, class Sip
 class SipClientInt
 {
     using SmlSmT = sml::sm<SmT<SipClientInt<SocketT, Md5T, SmT, SipClientT>>, sml::logger<Logger>>;
+
+    enum class AckKind : std::uint8_t
+    {
+        To2xx,
+        Non2xx,
+    };
 
 public:
     SipClientInt(asio::io_context& io_context, const std::string& user, std::string pwd, const std::string& server_ip, const std::string& server_port, std::string my_ip, SmlSmT& sm, SipClientT& sip_client)
@@ -184,8 +191,8 @@ public:
 
     void send_invite(const ev_401_unauthorized& /*unused*/)
     {
-        // first ack the prev sip 401/407 packet
-        send_sip_ack();
+        // ACK the 401/407 — non-2xx, so reuse INVITE's branch and Request-URI.
+        send_sip_ack(AckKind::Non2xx);
 
         if (!m_dialog)
         {
@@ -243,8 +250,12 @@ public:
 
     void call_established()
     {
-        // ack to ok after invite
-        send_sip_ack();
+        // ACK-to-2xx (RFC 3261 §13.2.2.4, cf. §17.1.1.3): handled by the UAC
+        // core as a new end-to-end transaction, so mint a fresh Via branch.
+        // Request-URI is the remote target from Contact; CSeq matches INVITE.
+        send_sip_ack(AckKind::To2xx);
+        // Subsequent in-dialog requests (e.g. BYE) need their own CSeq.
+        m_sip_sequence_number++;
         if (m_event_handler)
         {
             m_event_handler(m_sip_client, SipClientEvent { .event = SipClientEvent::Event::CALL_START });
@@ -257,7 +268,8 @@ public:
         {
             m_event_handler(m_sip_client, SipClientEvent { .event = SipClientEvent::Event::CALL_CANCELLED });
         }
-        send_sip_ack();
+        // ACK for 487 is non-2xx: same branch as INVITE, Request-URI = INVITE URI.
+        send_sip_ack(AckKind::Non2xx);
         m_tag = SipIdentifier::generate();
         m_branch = SipIdentifier::generate_branch();
         m_sip_sequence_number++;
@@ -384,7 +396,7 @@ private:
         }
         else if (reply == SipPacket::Status::DECLINE_603)
         {
-            send_sip_ack();
+            send_sip_ack(AckKind::Non2xx);
             m_sip_sequence_number++;
             m_branch = SipIdentifier::generate_branch();
 
@@ -392,7 +404,7 @@ private:
         }
         else if (reply == SipPacket::Status::BUSY_HERE_486)
         {
-            send_sip_ack();
+            send_sip_ack(AckKind::Non2xx);
             m_sip_sequence_number++;
             m_branch = SipIdentifier::generate_branch();
 
@@ -527,10 +539,21 @@ private:
         m_socket.send_buffered_data();
     }
 
-    void send_sip_ack()
+    void send_sip_ack(AckKind kind)
     {
+        if (!m_dialog)
+        {
+            return;
+        }
+        if (kind == AckKind::To2xx)
+        {
+            // RFC 3261 §13.2.2.4 (cf. §17.1.1.3): ACK-to-2xx is a new transaction → fresh branch.
+            m_branch = SipIdentifier::generate_branch();
+        }
         TxBufferT& tx_buffer = m_socket.get_new_tx_buf();
-        const std::string& request_uri = !m_dialog->remote_target.empty()
+        // ACK-to-non-2xx MUST reuse the INVITE's Request-URI; ACK-to-2xx MAY
+        // route to the remote target learned from the 200 OK's Contact.
+        const std::string& request_uri = (kind == AckKind::To2xx) && !m_dialog->remote_target.empty()
             ? m_dialog->remote_target
             : m_dialog->remote_uri;
         send_sip_header("ACK", request_uri, m_dialog->remote_uri, tx_buffer);
