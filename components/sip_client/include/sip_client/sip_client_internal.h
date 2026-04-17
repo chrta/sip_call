@@ -647,7 +647,19 @@ private:
     {
         stream << "SIP/2.0 " << code << "\r\n";
 
-        stream << "To: " << packet.get_to() << "\r\n";
+        // RFC 3261 §12.1.1: the UAS MUST add a tag to the To header of
+        // dialog-creating responses (and any response to a request that did
+        // not already carry one). Echoing the request's To verbatim loses
+        // this tag and prevents the remote side from forming the dialog.
+        const std::string& req_to = packet.get_to();
+        if (req_to.find(";tag=") != std::string::npos)
+        {
+            stream << "To: " << req_to << "\r\n";
+        }
+        else
+        {
+            stream << "To: " << req_to << ";tag=" << m_tag << "\r\n";
+        }
         stream << "From: " << packet.get_from() << "\r\n";
 
         for (const auto& rr : packet.get_record_route())
