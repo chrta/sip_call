@@ -285,12 +285,17 @@ private:
             else if (strncmp(TO, start_position, strlen(TO)) == 0)
             {
                 ESP_LOGV(TAG, "Detect to line");
-                const char* tag_pos = strstr(start_position, ">;tag=");
+                const char* value_start = start_position + strlen(TO);
+                const char* tag_pos = strstr(value_start, ";tag=");
                 if (tag_pos != nullptr)
                 {
-                    m_to_tag = std::string(tag_pos + strlen(">;tag="));
+                    m_to_tag = std::string(tag_pos + strlen(";tag="));
+                    m_to = std::string(value_start, tag_pos);
                 }
-                m_to = std::string(start_position + strlen(TO));
+                else
+                {
+                    m_to = std::string(value_start);
+                }
             }
             else if (strstr(start_position, FROM) == start_position)
             {

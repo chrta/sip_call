@@ -708,16 +708,17 @@ private:
 
         // RFC 3261 §12.1.1: the UAS MUST add a tag to the To header of
         // dialog-creating responses (and any response to a request that did
-        // not already carry one). Echoing the request's To verbatim loses
-        // this tag and prevents the remote side from forming the dialog.
-        const std::string& req_to = packet.get_to();
-        if (req_to.find(";tag=") != std::string::npos)
+        // not already carry one). packet.get_to() is stripped of any tag
+        // parameter by the parser, so reattach the peer's tag if present,
+        // otherwise add our own to form the dialog.
+        const std::string& req_to_tag = packet.get_to_tag();
+        if (!req_to_tag.empty())
         {
-            stream << "To: " << req_to << "\r\n";
+            stream << "To: " << packet.get_to() << ";tag=" << req_to_tag << "\r\n";
         }
         else
         {
-            stream << "To: " << req_to << ";tag=" << m_tag << "\r\n";
+            stream << "To: " << packet.get_to() << ";tag=" << m_tag << "\r\n";
         }
         stream << "From: " << packet.get_from() << "\r\n";
 
