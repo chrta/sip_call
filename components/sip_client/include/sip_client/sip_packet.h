@@ -6,7 +6,9 @@
 #pragma once
 
 #include "esp_log.h"
+#include <algorithm>
 #include <array>
+#include <cctype>
 #include <charconv>
 #include <cstdint>
 #include <cstring>
@@ -219,129 +221,9 @@ private:
             *end_position = '\0';
             ESP_LOGV(TAG, "Parsing line: %s", start_position);
 
-            if (strstr(start_position, SIP_2_0_SPACE) == start_position)
+            if (!parse_header_line(start_position, end_position, line_number))
             {
-                const char* code_start = start_position + strlen(SIP_2_0_SPACE);
-                long code = 0;
-                const auto parse_result = std::from_chars(code_start, end_position, code);
-                if (parse_result.ec != std::errc() || parse_result.ptr == code_start)
-                {
-                    ESP_LOGW(TAG, "Failed to parse status code in line '%s'", start_position);
-                    return false;
-                }
-                ESP_LOGV(TAG, "Detect status %ld", code);
-                m_status = convert_status(code);
-            }
-            else if ((strncmp(WWW_AUTHENTICATE, start_position, strlen(WWW_AUTHENTICATE)) == 0)
-                || (strncmp(PROXY_AUTHENTICATE, start_position, strlen(PROXY_AUTHENTICATE)) == 0))
-            {
-                ESP_LOGV(TAG, "Detect authenticate line");
-                // read realm and nonce from authentication line
-                if (!read_param(start_position, REALM, m_realm))
-                {
-                    ESP_LOGW(TAG, "Failed to read realm in authenticate line");
-                }
-                if (!read_param(start_position, NONCE, m_nonce))
-                {
-                    ESP_LOGW(TAG, "Failed to read nonce in authenticate line");
-                }
-                ESP_LOGI(TAG, "Realm is %s and nonce is %s", m_realm.c_str(), m_nonce.c_str());
-            }
-            else if (strncmp(CONTACT, start_position, strlen(CONTACT)) == 0)
-            {
-                ESP_LOGV(TAG, "Detect contact line");
-                start_position = start_position + strlen(CONTACT);
-
-                const char* open_pos = strstr(start_position, "<");
-                const char* close_pos = strstr(start_position, ">");
-
-                if ((open_pos == nullptr) || (close_pos == nullptr))
-                {
-                    ESP_LOGW(TAG, "Failed to read content of contact line");
-                }
-                else
-                {
-                    m_contact = std::string(open_pos + 1, close_pos);
-
-                    /* in the SIP 200 OK finishing a successful REGISTER, the contact line might also
-                     * contain the expire information from the server, e.g.
-                     * Contact: <...>;expires=300
-                     */
-                    const char* expires_pos = strstr(close_pos + 1, ";expires=");
-                    if (expires_pos != nullptr)
-                    {
-                        const long contact_expires = strtol(expires_pos + strlen(";expires="), nullptr, 10);
-                        if (contact_expires < 0)
-                        {
-                            ESP_LOGW(TAG, "Invalid contact expires %ld", contact_expires);
-                        }
-                        else
-                        {
-                            m_contact_expires = static_cast<uint32_t>(contact_expires);
-                        }
-                    }
-                }
-            }
-            else if (strncmp(TO, start_position, strlen(TO)) == 0)
-            {
-                ESP_LOGV(TAG, "Detect to line");
-                const char* value_start = start_position + strlen(TO);
-                const char* tag_pos = strstr(value_start, ";tag=");
-                if (tag_pos != nullptr)
-                {
-                    m_to_tag = std::string(tag_pos + strlen(";tag="));
-                    m_to = std::string(value_start, tag_pos);
-                }
-                else
-                {
-                    m_to = std::string(value_start);
-                }
-            }
-            else if (strstr(start_position, FROM) == start_position)
-            {
-                m_from = std::string(start_position + strlen(FROM));
-            }
-            else if (strstr(start_position, VIA) == start_position)
-            {
-                append_via(std::string(start_position + strlen(VIA)));
-            }
-            else if (strstr(start_position, RECORD_ROUTE) == start_position)
-            {
-                append_record_route(std::string(start_position + strlen(RECORD_ROUTE)));
-            }
-            else if (strstr(start_position, C_SEQ) == start_position)
-            {
-                m_cseq = std::string(start_position + strlen(C_SEQ));
-            }
-            else if (strstr(start_position, CALL_ID) == start_position)
-            {
-                m_call_id = std::string(start_position + strlen(CALL_ID));
-            }
-            else if (strstr(start_position, P_CALLED_PARTY_ID) == start_position)
-            {
-                m_p_called_party_id = std::string(start_position + strlen(P_CALLED_PARTY_ID));
-            }
-            else if (strstr(start_position, CONTENT_TYPE) == start_position)
-            {
-                m_content_type = convert_content_type(start_position + strlen(CONTENT_TYPE));
-            }
-            else if (strstr(start_position, CONTENT_LENGTH) == start_position)
-            {
-                const long content_length = strtol(start_position + strlen(CONTENT_LENGTH), nullptr, 10);
-                if (content_length < 0)
-                {
-                    ESP_LOGW(TAG, "Invalid content length %ld", content_length);
-                }
-                else
-                {
-                    m_content_length = static_cast<uint32_t>(content_length);
-                }
-            }
-
-            else if (line_number == 1)
-            {
-                // first line, but no response
-                m_method = convert_method(start_position);
+                return false;
             }
 
             // go to next line
@@ -351,6 +233,163 @@ private:
 
         // no line only containing the line ending found :(
         return false;
+    }
+
+    bool parse_header_line(const char* start_position, const char* end_position, uint32_t line_number)
+    {
+        if (strstr(start_position, SIP_2_0_SPACE) == start_position)
+        {
+            return parse_status_line(start_position, end_position);
+        }
+        if (match_header_value(start_position, WWW_AUTHENTICATE) != nullptr
+            || match_header_value(start_position, PROXY_AUTHENTICATE) != nullptr)
+        {
+            parse_auth_line(start_position);
+            return true;
+        }
+        if (const char* value = match_header_value(start_position, CONTACT, 'm'); value != nullptr)
+        {
+            parse_contact_value(value);
+            return true;
+        }
+        if (const char* value = match_header_value(start_position, TO, 't'); value != nullptr)
+        {
+            parse_to_value(value);
+            return true;
+        }
+        if (const char* value = match_header_value(start_position, FROM, 'f'); value != nullptr)
+        {
+            m_from = value;
+            return true;
+        }
+        if (const char* value = match_header_value(start_position, VIA, 'v'); value != nullptr)
+        {
+            append_via(value);
+            return true;
+        }
+        if (const char* value = match_header_value(start_position, RECORD_ROUTE); value != nullptr)
+        {
+            append_record_route(value);
+            return true;
+        }
+        if (const char* value = match_header_value(start_position, C_SEQ); value != nullptr)
+        {
+            m_cseq = value;
+            return true;
+        }
+        if (const char* value = match_header_value(start_position, CALL_ID, 'i'); value != nullptr)
+        {
+            m_call_id = value;
+            return true;
+        }
+        if (const char* value = match_header_value(start_position, P_CALLED_PARTY_ID); value != nullptr)
+        {
+            m_p_called_party_id = value;
+            return true;
+        }
+        if (const char* value = match_header_value(start_position, CONTENT_TYPE, 'c'); value != nullptr)
+        {
+            m_content_type = convert_content_type(value);
+            return true;
+        }
+        if (const char* value = match_header_value(start_position, CONTENT_LENGTH, 'l'); value != nullptr)
+        {
+            parse_content_length_value(value, end_position, start_position);
+            return true;
+        }
+        if (line_number == 1)
+        {
+            m_method = convert_method(start_position);
+        }
+        return true;
+    }
+
+    bool parse_status_line(const char* start_position, const char* end_position)
+    {
+        const char* code_start = start_position + strlen(SIP_2_0_SPACE);
+        long code = 0;
+        const auto parse_result = std::from_chars(code_start, end_position, code);
+        if (parse_result.ec != std::errc() || parse_result.ptr == code_start)
+        {
+            ESP_LOGW(TAG, "Failed to parse status code in line '%s'", start_position);
+            return false;
+        }
+        ESP_LOGV(TAG, "Detect status %ld", code);
+        m_status = convert_status(code);
+        return true;
+    }
+
+    void parse_auth_line(const char* start_position)
+    {
+        ESP_LOGV(TAG, "Detect authenticate line");
+        if (!read_param(start_position, REALM, m_realm))
+        {
+            ESP_LOGW(TAG, "Failed to read realm in authenticate line");
+        }
+        if (!read_param(start_position, NONCE, m_nonce))
+        {
+            ESP_LOGW(TAG, "Failed to read nonce in authenticate line");
+        }
+        ESP_LOGI(TAG, "Realm is %s and nonce is %s", m_realm.c_str(), m_nonce.c_str());
+    }
+
+    void parse_contact_value(const char* value)
+    {
+        ESP_LOGV(TAG, "Detect contact line");
+
+        const char* open_pos = strchr(value, '<');
+        const char* close_pos = strchr(value, '>');
+
+        if ((open_pos == nullptr) || (close_pos == nullptr))
+        {
+            ESP_LOGW(TAG, "Failed to read content of contact line");
+            return;
+        }
+        m_contact = std::string(open_pos + 1, close_pos);
+
+        /* in the SIP 200 OK finishing a successful REGISTER, the contact line might also
+         * contain the expire information from the server, e.g.
+         * Contact: <...>;expires=300
+         */
+        const char* expires_pos = strstr(close_pos + 1, ";expires=");
+        if (expires_pos == nullptr)
+        {
+            return;
+        }
+        const long contact_expires = strtol(expires_pos + strlen(";expires="), nullptr, 10);
+        if (contact_expires < 0)
+        {
+            ESP_LOGW(TAG, "Invalid contact expires %ld", contact_expires);
+            return;
+        }
+        m_contact_expires = static_cast<uint32_t>(contact_expires);
+    }
+
+    void parse_to_value(const char* value)
+    {
+        ESP_LOGV(TAG, "Detect to line");
+        const char* tag_pos = strstr(value, ";tag=");
+        if (tag_pos != nullptr)
+        {
+            m_to_tag = std::string(tag_pos + strlen(";tag="));
+            m_to = std::string(value, tag_pos);
+        }
+        else
+        {
+            m_to = std::string(value);
+        }
+    }
+
+    void parse_content_length_value(const char* value, const char* end_position, const char* start_position)
+    {
+        uint32_t content_length = 0;
+        const auto parse_result = std::from_chars(value, end_position, content_length);
+        if (parse_result.ec != std::errc() || parse_result.ptr == value)
+        {
+            ESP_LOGW(TAG, "Invalid content length in line '%s'", start_position);
+            return;
+        }
+        m_content_length = content_length;
     }
 
     bool parse_body()
@@ -416,6 +455,54 @@ private:
         } while (end_position != nullptr);
 
         return true;
+    }
+
+    // Case-insensitive byte comparison of length `n`. ASCII-only — SIP
+    // headers are ASCII per RFC 3261 §7.3.1.
+    static bool iequals_n(const char* a, const char* b, size_t n)
+    {
+        return std::equal(a, a + n, b, [](char ca, char cb) {
+            return std::tolower(static_cast<unsigned char>(ca))
+                == std::tolower(static_cast<unsigned char>(cb));
+        });
+    }
+
+    // If `line` begins with a SIP header name (RFC 3261 §7.3.1 HCOLON
+    // syntax — case-insensitive long name OR single-letter compact form,
+    // followed by optional LWS, a ':' and optional LWS), return a pointer
+    // to the start of the value; otherwise nullptr.
+    static const char* match_header_value(const char* line, const char* long_name, char compact = '\0')
+    {
+        const char* p = nullptr;
+        const size_t long_len = strlen(long_name);
+        if (iequals_n(line, long_name, long_len))
+        {
+            p = line + long_len;
+        }
+        else if (compact != '\0'
+            && std::tolower(static_cast<unsigned char>(line[0]))
+                == std::tolower(static_cast<unsigned char>(compact)))
+        {
+            p = line + 1;
+        }
+        else
+        {
+            return nullptr;
+        }
+        while (*p == ' ' || *p == '\t')
+        {
+            ++p;
+        }
+        if (*p != ':')
+        {
+            return nullptr;
+        }
+        ++p;
+        while (*p == ' ' || *p == '\t')
+        {
+            ++p;
+        }
+        return p;
     }
 
     static bool read_param(const char* line, const char* param_name, std::string& output)
@@ -574,16 +661,16 @@ private:
     static constexpr const char* SIP_2_0_SPACE = "SIP/2.0 ";
     static constexpr const char* WWW_AUTHENTICATE = "WWW-Authenticate";
     static constexpr const char* PROXY_AUTHENTICATE = "Proxy-Authenticate";
-    static constexpr const char* CONTACT = "Contact: ";
-    static constexpr const char* TO = "To: ";
-    static constexpr const char* FROM = "From: ";
-    static constexpr const char* VIA = "Via: ";
-    static constexpr const char* RECORD_ROUTE = "Record-Route: ";
-    static constexpr const char* P_CALLED_PARTY_ID = "P-Called-Party-ID: ";
-    static constexpr const char* C_SEQ = "CSeq: ";
-    static constexpr const char* CALL_ID = "Call-ID: ";
-    static constexpr const char* CONTENT_TYPE = "Content-Type: ";
-    static constexpr const char* CONTENT_LENGTH = "Content-Length: ";
+    static constexpr const char* CONTACT = "Contact";
+    static constexpr const char* TO = "To";
+    static constexpr const char* FROM = "From";
+    static constexpr const char* VIA = "Via";
+    static constexpr const char* RECORD_ROUTE = "Record-Route";
+    static constexpr const char* P_CALLED_PARTY_ID = "P-Called-Party-ID";
+    static constexpr const char* C_SEQ = "CSeq";
+    static constexpr const char* CALL_ID = "Call-ID";
+    static constexpr const char* CONTENT_TYPE = "Content-Type";
+    static constexpr const char* CONTENT_LENGTH = "Content-Length";
     static constexpr const char* REALM = "realm";
     static constexpr const char* NONCE = "nonce";
     static constexpr const char* NOTIFY = "NOTIFY ";
