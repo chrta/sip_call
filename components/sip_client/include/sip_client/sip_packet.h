@@ -7,8 +7,10 @@
 
 #include "esp_log.h"
 #include <array>
+#include <charconv>
 #include <cstdint>
 #include <cstring>
+#include <system_error>
 
 class SipPacket
 {
@@ -219,7 +221,14 @@ private:
 
             if (strstr(start_position, SIP_2_0_SPACE) == start_position)
             {
-                const long code = strtol(start_position + strlen(SIP_2_0_SPACE), nullptr, 10);
+                const char* code_start = start_position + strlen(SIP_2_0_SPACE);
+                long code = 0;
+                const auto parse_result = std::from_chars(code_start, end_position, code);
+                if (parse_result.ec != std::errc() || parse_result.ptr == code_start)
+                {
+                    ESP_LOGW(TAG, "Failed to parse status code in line '%s'", start_position);
+                    return false;
+                }
                 ESP_LOGV(TAG, "Detect status %ld", code);
                 m_status = convert_status(code);
             }
