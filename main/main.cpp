@@ -10,6 +10,7 @@
 
 #include "esp_event.h"
 #include "esp_system.h"
+#include "esp_task_wdt.h"
 #include "esp_wifi.h"
 #include "nvs_flash.h"
 
@@ -95,6 +96,21 @@ static std::string get_local_ip_address(const esp_ip4_addr_t* got_ip)
 }
 
 using ButtonInputHandlerT = ButtonInputHandler<SipClientT, BELL_GPIO_PIN, RING_DURATION_TIMEOUT_MSEC>;
+
+static constexpr auto WDT_FEED_INTERVAL_SEC = 2;
+
+static void schedule_wdt_feed(asio::steady_timer& timer)
+{
+    timer.expires_after(asio::chrono::seconds(WDT_FEED_INTERVAL_SEC));
+    timer.async_wait([&timer](const asio::error_code& ec) {
+        if (ec)
+        {
+            return;
+        }
+        esp_task_wdt_reset();
+        schedule_wdt_feed(timer);
+    });
+}
 
 #ifdef CONFIG_HTTP_SERVER
 using WebServerT = WebServer<SipClientT>;
@@ -221,9 +237,13 @@ static void sip_task(void* pvParameters)
 #endif /* ACTUATOR_ENABLED */
     };
 
+    ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
+    asio::steady_timer wdt_timer(*ctx->io_context);
+
     for (;;)
     {
         // Wait for wifi connection
+        esp_task_wdt_reset();
         xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT, false, true, portMAX_DELAY);
 
         if (!client.is_initialized())
@@ -244,6 +264,9 @@ static void sip_task(void* pvParameters)
 #endif /* CONFIG_HTTP_SERVER */
             });
         }
+
+        esp_task_wdt_reset();
+        schedule_wdt_feed(wdt_timer);
 
         ctx->io_context->run();
         // The io_context was stopped, to be able to call run() again later, restart must be called.
