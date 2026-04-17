@@ -61,12 +61,9 @@ public:
         const bool result_rtp = m_rtp_socket.init();
         const bool result_sip = m_socket.init();
 
-        // TODO: remove this here, do it properly with boost::sml
         if (result_rtp && result_sip)
         {
-            asio::dispatch(m_io_context, [this]() {
-                this->m_sm.process_event(ev_start {});
-            });
+            m_sm.process_event(ev_start {});
         }
 
         return result_rtp && result_sip;
