@@ -450,18 +450,41 @@ private:
 
         // Do not accept calls to e.g. **9 on fritzbox from self.
         // But immediately pick up all other calls, also to **9 from other participants.
-        const std::string self_display = m_dialog ? m_dialog->caller_display : m_user;
-        if ((packet.get_method() == SipPacket::Method::INVITE) && (packet.get_from().rfind(self_display + "\"", 1) != 1))
+        if (packet.get_method() == SipPacket::Method::INVITE)
         {
-            ESP_LOGV(TAG, "Accept invite from : '%s'", packet.get_from().c_str());
-            send_sip_ok(packet);
-            m_sm.process_event(ev_rx_invite {});
+            const std::string from_user = extract_uri_user(packet.get_from());
+            const bool is_self = !from_user.empty() && from_user == m_user;
+            if (!is_self)
+            {
+                ESP_LOGV(TAG, "Accept invite from : '%s'", packet.get_from().c_str());
+                send_sip_ok(packet);
+                m_sm.process_event(ev_rx_invite {});
+            }
+            else
+            {
+                ESP_LOGV(TAG, "Drop invite from : %s", packet.get_from().c_str());
+                send_sip_decline(packet);
+            }
         }
-        else if (packet.get_method() == SipPacket::Method::INVITE)
+    }
+
+    // Extract the user part of the first sip: URI embedded in `header`.
+    // Handles display-name + angle-bracket and bare-URI forms.
+    static std::string extract_uri_user(const std::string& header)
+    {
+        static constexpr const char* SIP_PREFIX = "sip:";
+        const size_t sip_pos = header.find(SIP_PREFIX);
+        if (sip_pos == std::string::npos)
         {
-            ESP_LOGV(TAG, "Drop invite from : %s", packet.get_from().c_str());
-            send_sip_decline(packet);
+            return {};
         }
+        const size_t user_start = sip_pos + strlen(SIP_PREFIX);
+        const size_t at_pos = header.find('@', user_start);
+        if (at_pos == std::string::npos)
+        {
+            return {};
+        }
+        return header.substr(user_start, at_pos - user_start);
     }
 
     void send_sip_register()
