@@ -90,7 +90,12 @@ If the bell transformer delivers enough power, the ESP32 can be powered from it.
 License
 -------
 
-If not otherwise specified, code in this repository is Copyright (C) 2017-2021 Christian Taedcke <hacking@taedcke.com>, licensed under the Apache License 2.0 as described in the file LICENSE.
+If not otherwise specified, code in this repository is Copyright (C) 2017-2026 Christian Taedcke <hacking@taedcke.com>, licensed under the GNU Affero General Public License v3.0 or later, as described in the file LICENSE.
+
+Exceptions:
+
+- ``components/sip_client/include/boost/sml.hpp`` is Copyright (c) 2016-2024 Kris Jusiak, distributed under the Boost Software License, Version 1.0.
+- ``main/sip_event_handler_actuator.h`` is Copyright 2020 Lennart Planz <lennart.planz@gmail.com>, licensed under the Apache License 2.0.
 
 Misc Information
 ----------------
