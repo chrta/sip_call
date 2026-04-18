@@ -2,7 +2,7 @@
 # Call with run-clang-tidy.py anfter creating a compilation database
 ---
 Checks:          'bugprone-*,cert-*,clang-diagnostic-*,clang-analyzer-*,concurrency-mt-unsafe,cppcoreguidelines-*,hicpp-*,llvm-else-after-return,misc-*,modernize-*,performance-*,readability-*,-modernize-use-trailing-return-type,-cppcoreguidelines-pro-bounds-constant-array-index,-cppcoreguidelines-pro-type-vararg,-hicpp-vararg,-cppcoreguidelines-pro-bounds-array-to-pointer-decay,-hicpp-no-array-decay,-cppcoreguidelines-macro-usage,-cert-dcl50-cpp,-readability-identifier-length,-cppcoreguidelines-avoid-magic-numbers,-readability-magic-numbers,-cert-msc30-c,-cert-msc50-cpp,-bugprone-easily-swappable-parameters,-cppcoreguidelines-pro-bounds-pointer-arithmetic,-hicpp-signed-bitwise,-readability-math-missing-parentheses,-concurrency-mt-unsafe,-cppcoreguidelines-avoid-const-or-ref-data-members,-misc-no-recursion,-cppcoreguidelines-avoid-do-while,-misc-include-cleaner'
-WarningsAsErrors: 'misc-const-correctness,modernize-use-default-member-init,cppcoreguidelines-pro-type-member-init,hicpp-member-init,hicpp-explicit-conversions,cppcoreguidelines-avoid-c-arrays,hicpp-avoid-c-arrays,modernize-avoid-c-arrays,performance-unnecessary-value-param'
+WarningsAsErrors: '*'
 # do not match smp.hpp
 # all other headers are *.h
 HeaderFilterRegex: '.*\.h$'
