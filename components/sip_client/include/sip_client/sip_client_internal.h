@@ -34,14 +34,14 @@ class SipClientInt
     };
 
 public:
-    SipClientInt(asio::io_context& io_context, const std::string& user, std::string pwd, const std::string& server_ip, const std::string& server_port, std::string my_ip, SmlSmT& sm, SipClientT& sip_client)
+    SipClientInt(asio::io_context& io_context, std::string user, std::string pwd, const std::string& server_ip, const std::string& server_port, std::string my_ip, SmlSmT& sm, SipClientT& sip_client)
         : m_socket(io_context, server_ip, server_port, LOCAL_PORT, [this](std::string data) {
             rx(std::move(data));
         })
         , m_rtp_socket(io_context, server_ip, "7078", LOCAL_RTP_PORT, [](const std::string& /*unused*/) {
         })
         , m_server_ip(server_ip)
-        , m_user(user)
+        , m_user(std::move(user))
         , m_pwd(std::move(pwd))
         , m_my_ip(std::move(my_ip))
         , m_call_id(SipIdentifier::generate())
