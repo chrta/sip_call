@@ -17,6 +17,9 @@ namespace sml = boost::sml;
 struct e_btn
 {
 };
+struct e_call_start
+{
+};
 struct e_call_end
 {
 };
@@ -39,14 +42,23 @@ struct dependencies
             d.request_cancel();
         };
 
+        // Ring-duration timeout only applies while we are still waiting for
+        // the callee to pick up. Once the call is established, the user is
+        // expected to end it explicitly; we stay in sInCall until the peer
+        // hangs up or the call is otherwise terminated.
         return make_transition_table(
-            *"idle"_s + event<e_btn> / action_call = "sRinging"_s, "sRinging"_s + event<e_timeout> / action_cancel = "idle"_s, "sRinging"_s + event<e_call_end> = "idle"_s);
+            *"idle"_s + event<e_btn> / action_call = "sRinging"_s,
+            "sRinging"_s + event<e_timeout> / action_cancel = "idle"_s,
+            "sRinging"_s + event<e_call_start> = "sInCall"_s,
+            "sRinging"_s + event<e_call_end> = "idle"_s,
+            "sInCall"_s + event<e_call_end> = "idle"_s);
     }
 };
 
 enum class Event
 {
     BUTTON_PRESS,
+    CALL_START,
     CALL_END
 };
 
@@ -82,13 +94,19 @@ public:
         for (;;)
         {
             Event event;
-            TickType_t timeout = m_sm.is("idle"_s) ? portMAX_DELAY : RING_DURATION_TICKS;
+            // The ring-duration timeout only arms while we are still ringing.
+            // In idle and during an established call we wait indefinitely.
+            TickType_t timeout = m_sm.is("sRinging"_s) ? RING_DURATION_TICKS : portMAX_DELAY;
 
             if (xQueueReceive(m_queue, &event, timeout))
             {
                 if (event == Event::BUTTON_PRESS)
                 {
                     m_sm.process_event(e_btn {});
+                }
+                else if (event == Event::CALL_START)
+                {
+                    m_sm.process_event(e_call_start {});
                 }
                 else if (event == Event::CALL_END)
                 {
@@ -100,6 +118,13 @@ public:
                 m_sm.process_event(e_timeout {});
             }
         }
+    }
+
+    void call_start()
+    {
+        Event event = Event::CALL_START;
+        // don't wait if the queue is full
+        xQueueSend(m_queue, &event, (TickType_t)0);
     }
 
     void call_end()
