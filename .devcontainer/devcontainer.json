@@ -1,0 +1,48 @@
+{
+  "name": "sip_call",
+  "build": {
+    "context": "../docker",
+    "dockerfile": "../docker/Dockerfile"
+  },
+  "remoteUser": "vscode",
+  "updateRemoteUserUID": true,
+  "workspaceFolder": "/workspaces/sip_call",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/sip_call,type=bind",
+  "containerEnv": {
+    "IDF_PATH": "/opt/esp/idf",
+    "IDF_TOOLS_PATH": "/opt/esp"
+  },
+  "runArgs": [
+    "--privileged"
+  ],
+  "mounts": [
+    "source=/dev,target=/dev,type=bind"
+  ],
+  "postCreateCommand": "grep -qF '/opt/esp/idf/export.sh' $HOME/.bashrc || echo '. /opt/esp/idf/export.sh > /dev/null 2>&1' >> $HOME/.bashrc",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools",
+        "ms-vscode.cpptools-extension-pack",
+        "ms-vscode.cmake-tools",
+        "espressif.esp-idf-extension",
+        "xaver.clang-format"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "idf.espIdfPath": "/opt/esp/idf",
+        "idf.toolsPath": "/opt/esp",
+        "idf.gitPath": "/usr/bin/git",
+        "C_Cpp.clang_format_path": "/usr/bin/clang-format-21",
+        "[cpp]": {
+          "editor.defaultFormatter": "xaver.clang-format",
+          "editor.formatOnSave": false
+        },
+        "[c]": {
+          "editor.defaultFormatter": "xaver.clang-format",
+          "editor.formatOnSave": false
+        }
+      }
+    }
+  }
+}
