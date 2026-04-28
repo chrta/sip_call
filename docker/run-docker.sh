@@ -33,16 +33,16 @@ apt_install \
 
 wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
 
-echo deb http://apt.llvm.org/${UBUNTU_CODENAME}/ llvm-toolchain-${UBUNTU_CODENAME}-21 main > /etc/apt/sources.list.d/llvm.list
+echo deb http://apt.llvm.org/${UBUNTU_CODENAME}/ llvm-toolchain-${UBUNTU_CODENAME}-22 main > /etc/apt/sources.list.d/llvm.list
 
 wget https://github.com/chriskohlhoff/asio/archive/asio-1-32-0.tar.gz -O /tmp/asio-1-32-0.tar.gz
 
 tar -C /usr/include --strip-components=3 -x -f /tmp/asio-1-32-0.tar.gz asio-asio-1-32-0/asio/include/
 
 apt_install \
-    clang-21 \
-	clang-format-21 \
-	clang-tidy-21
+    clang-22 \
+	clang-format-22 \
+	clang-tidy-22
 
 # Clean up apt cache after all installations complete
 rm -rf /var/lib/apt/lists/*

@@ -30,7 +30,7 @@ Requires: `asio-devel mbedtls-devel` (e.g. `sudo dnf install asio-devel mbedtls-
 ### Code Style
 
 ```bash
-# Check formatting (uses clang-format-21)
+# Check formatting (uses clang-format-22)
 ci/check_codestyle.sh
 
 # Auto-format all source files
@@ -40,7 +40,7 @@ find . -regex '.*\.\(cpp\|cc\|cxx\|h\)' -exec clang-format -style=file -i {} \;
 ### Static Analysis
 
 ```bash
-# Runs clang-tidy-21 over a Clang native build; exits non-zero on any finding
+# Runs clang-tidy-22 over a Clang native build; exits non-zero on any finding
 ci/static_code_analysis.sh
 ```
 
@@ -48,7 +48,7 @@ ci/static_code_analysis.sh
 
 ```bash
 ci/build_for_esp32.sh   # Builds for esp32, esp32s2, esp32c3 with default + alternative configs
-ci/build_for_pc.sh      # Builds with GCC and Clang (clang-21)
+ci/build_for_pc.sh      # Builds with GCC and Clang (clang-22)
 ```
 
 ## Architecture

@@ -33,7 +33,7 @@
         "idf.espIdfPath": "/opt/esp/idf",
         "idf.toolsPath": "/opt/esp",
         "idf.gitPath": "/usr/bin/git",
-        "C_Cpp.clang_format_path": "/usr/bin/clang-format-21",
+        "C_Cpp.clang_format_path": "/usr/bin/clang-format-22",
         "[cpp]": {
           "editor.defaultFormatter": "xaver.clang-format",
           "editor.formatOnSave": false
