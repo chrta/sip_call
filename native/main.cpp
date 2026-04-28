@@ -27,14 +27,14 @@ static constexpr char const* TAG = "main";
 
 using SipClientT = SipClient<AsioUdpClient, MbedtlsMd5>;
 
+namespace {
+
 struct handlers_t
 {
     SipClientT& client;
     KeyboardInput& input;
     asio::io_context& io_context;
 };
-
-namespace {
 
 void sip_task(void* pvParameters)
 {

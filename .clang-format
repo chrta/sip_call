@@ -17,4 +17,5 @@ BreakBeforeBraces: Custom
 SpacesInLineCommentPrefix:
   Minimum: 1
   Maximum: 1
+SpaceInEmptyBraces: Never
 ...
